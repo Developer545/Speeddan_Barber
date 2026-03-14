@@ -1,12 +1,13 @@
 /**
- * prisma.ts — Singleton de PrismaClient con Neon Serverless Adapter.
- * Prisma 7 requiere un driver adapter para conexiones directas.
- * Usamos @prisma/adapter-neon para compatibilidad con Vercel serverless.
- * Una sola instancia en toda la app (evita hot-reload connections).
+ * prisma.ts — Singleton de PrismaClient con @prisma/adapter-pg.
+ * Usa el driver pg (PostgreSQL estándar TCP) para compatibilidad
+ * universal: Vercel Node.js Lambda, local dev, scripts de seed.
+ * Neon PostgreSQL acepta conexiones TCP estándar sin WebSocket.
  */
 
 import { PrismaClient } from '@prisma/client';
-import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
@@ -14,12 +15,13 @@ function createPrismaClient() {
     throw new Error('DATABASE_URL no configurado');
   }
 
-  const adapter = new PrismaNeon({ connectionString });
+  const pool    = new Pool({ connectionString, max: 10 });
+  const adapter = new PrismaPg(pool);
 
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development'
-      ? ['query', 'error', 'warn']
+      ? ['error', 'warn']
       : ['error'],
   });
 }
