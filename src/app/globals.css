@@ -182,11 +182,54 @@
 }
 
 /* ─────────────────────────────────────────────────────────
+   SHADCN / BASE-UI Compatibility
+   Mapea nuestros tokens semánticos a los nombres que
+   esperan los componentes shadcn (bg-primary, bg-background, etc.)
+   ───────────────────────────────────────────────────────── */
+:root {
+  --primary:              var(--brand-primary);
+  --primary-foreground:   var(--btn-primary-fg);
+  --secondary:            var(--palette-neutral-100);
+  --secondary-foreground: var(--palette-neutral-900);
+  --muted:                var(--palette-neutral-100);
+  --muted-foreground:     var(--palette-neutral-500);
+  --background:           var(--bg-page);
+  --foreground:           var(--text-primary);
+  --card:                 var(--bg-surface);
+  --card-foreground:      var(--text-primary);
+  --popover:              var(--bg-surface-raised);
+  --popover-foreground:   var(--text-primary);
+  --border:               var(--border-default);
+  --input:                var(--input-border);
+  --ring:                 var(--border-focus);
+  --destructive:          var(--status-error);
+  --destructive-foreground: var(--text-inverse);
+  --accent:               var(--palette-neutral-100);
+  --accent-foreground:    var(--palette-neutral-900);
+}
+
+/* ─────────────────────────────────────────────────────────
    TAILWIND v4 — Tema declarado con @theme
    Expone los tokens semánticos como utilidades Tailwind:
    bg-page, text-primary, border-default, etc.
    ───────────────────────────────────────────────────────── */
 @theme inline {
+  /* Shadcn compatibility colors */
+  --color-primary:            hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary:          hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted:              hsl(var(--muted));
+  --color-muted-foreground:   hsl(var(--muted-foreground));
+  --color-background:         hsl(var(--background));
+  --color-foreground:         hsl(var(--foreground));
+  --color-card:               hsl(var(--card));
+  --color-card-foreground:    hsl(var(--card-foreground));
+  --color-popover:            hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-destructive:        hsl(var(--destructive));
+  --color-accent:             hsl(var(--accent));
+  --color-accent-foreground:  hsl(var(--accent-foreground));
   /* Fondos */
   --color-bg-page:           hsl(var(--bg-page));
   --color-bg-surface:        hsl(var(--bg-surface));
