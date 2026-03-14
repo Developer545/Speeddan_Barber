@@ -1,0 +1,279 @@
+// ════════════════════════════════════════════════════
+// Speeddan Barbería — Prisma Schema
+// Prefijo barber_ en tablas para convivir con otros
+// proyectos en la misma instancia Neon PostgreSQL.
+// ════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────────────
+// ENUMS
+// ──────────────────────────────────────────────────────
+
+enum BarberPlan {
+  TRIAL
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+enum BarberTenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum BarberUserRole {
+  OWNER
+  BARBER
+  CLIENT
+}
+
+enum BarberAppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum BarberPaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  QR
+}
+
+enum BarberPaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+// ──────────────────────────────────────────────────────
+// TENANT — cada barbería es un tenant aislado
+// themeConfig: JSON con overrides de CSS variables
+// Ejemplo: { "--brand-primary": "213 94% 47%" }
+// ──────────────────────────────────────────────────────
+
+model BarberTenant {
+  id          Int                @id @default(autoincrement())
+  slug        String             @unique
+  name        String
+  plan        BarberPlan         @default(TRIAL)
+  status      BarberTenantStatus @default(TRIAL)
+  trialEndsAt DateTime?
+  paidUntil   DateTime?
+  suspendedAt DateTime?
+  maxBarbers  Int                @default(3)
+  themeConfig Json               @default("{}")
+  modules     Json               @default("{\"appointments\":true,\"billing\":false,\"loyalty\":false,\"products\":false}")
+  logoUrl     String?
+  address     String?
+  phone       String?
+  email       String?
+  city        String?
+  country     String             @default("SV")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+
+  users        BarberUser[]
+  barbers      Barber[]
+  services     BarberService[]
+  appointments BarberAppointment[]
+  payments     BarberPayment[]
+  reviews      BarberReview[]
+  sessions     BarberSession[]
+
+  @@map("barber_tenants")
+}
+
+// ──────────────────────────────────────────────────────
+// USER — dueño, barbero o cliente del tenant
+// @@unique([email, tenantId]) permite mismo email en
+// diferentes barberías sin conflicto.
+// ──────────────────────────────────────────────────────
+
+model BarberUser {
+  id        Int            @id @default(autoincrement())
+  tenantId  Int
+  tenant    BarberTenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email     String
+  password  String
+  fullName  String
+  phone     String?
+  avatarUrl String?
+  role      BarberUserRole @default(CLIENT)
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  barberProfile Barber?
+  appointments  BarberAppointment[] @relation("ClientAppointments")
+  sessions      BarberSession[]
+
+  @@unique([email, tenantId])
+  @@map("barber_users")
+}
+
+// ──────────────────────────────────────────────────────
+// SESSION — refresh tokens persistidos en BD
+// Se limpian automáticamente al expirar (cron futuro)
+// ──────────────────────────────────────────────────────
+
+model BarberSession {
+  id           String       @id @default(cuid())
+  userId       Int
+  user         BarberUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId     Int
+  tenant       BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  refreshToken String       @unique
+  expiresAt    DateTime
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime     @default(now())
+
+  @@map("barber_sessions")
+}
+
+// ──────────────────────────────────────────────────────
+// BARBER — perfil profesional del barbero
+// ──────────────────────────────────────────────────────
+
+model Barber {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int
+  tenant      BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      Int          @unique
+  user        BarberUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio         String?
+  specialties String[]     @default([])
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  schedules    BarberSchedule[]
+  appointments BarberAppointment[]
+  reviews      BarberReview[]
+
+  @@map("barbers")
+}
+
+// ──────────────────────────────────────────────────────
+// SCHEDULE — horarios de trabajo por día de la semana
+// ──────────────────────────────────────────────────────
+
+model BarberSchedule {
+  id        Int     @id @default(autoincrement())
+  barberId  Int
+  barber    Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  dayOfWeek Int     // 0=Dom, 1=Lun ... 6=Sáb
+  startTime String  // "09:00"
+  endTime   String  // "18:00"
+  active    Boolean @default(true)
+
+  @@unique([barberId, dayOfWeek])
+  @@map("barber_schedules")
+}
+
+// ──────────────────────────────────────────────────────
+// SERVICE — servicios que ofrece la barbería
+// ──────────────────────────────────────────────────────
+
+model BarberService {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int
+  tenant      BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Decimal      @db.Decimal(10, 2)
+  duration    Int          // minutos
+  imageUrl    String?
+  category    String?      // "cabello" | "barba" | "combo" | "tratamiento"
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  appointments BarberAppointment[]
+
+  @@map("barber_services")
+}
+
+// ──────────────────────────────────────────────────────
+// APPOINTMENT — citas reservadas
+// @@unique([barberId, startTime]) previene doble reserva
+// a nivel de base de datos (race condition fix)
+// ──────────────────────────────────────────────────────
+
+model BarberAppointment {
+  id           Int                     @id @default(autoincrement())
+  tenantId     Int
+  tenant       BarberTenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientId     Int
+  client       BarberUser              @relation("ClientAppointments", fields: [clientId], references: [id])
+  barberId     Int
+  barber       Barber                  @relation(fields: [barberId], references: [id])
+  serviceId    Int
+  service      BarberService           @relation(fields: [serviceId], references: [id])
+  startTime    DateTime
+  endTime      DateTime
+  status       BarberAppointmentStatus @default(PENDING)
+  notes        String?
+  cancelReason String?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  payment BarberPayment?
+  review  BarberReview?
+
+  @@unique([barberId, startTime])
+  @@map("barber_appointments")
+}
+
+// ──────────────────────────────────────────────────────
+// PAYMENT — caja y registro de cobros
+// ──────────────────────────────────────────────────────
+
+model BarberPayment {
+  id            Int                 @id @default(autoincrement())
+  tenantId      Int
+  tenant        BarberTenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointmentId Int                 @unique
+  appointment   BarberAppointment   @relation(fields: [appointmentId], references: [id])
+  amount        Decimal             @db.Decimal(10, 2)
+  method        BarberPaymentMethod @default(CASH)
+  status        BarberPaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime            @default(now())
+
+  @@map("barber_payments")
+}
+
+// ──────────────────────────────────────────────────────
+// REVIEW — calificaciones post-cita (1-5 estrellas)
+// ──────────────────────────────────────────────────────
+
+model BarberReview {
+  id            Int               @id @default(autoincrement())
+  tenantId      Int
+  tenant        BarberTenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointmentId Int               @unique
+  appointment   BarberAppointment @relation(fields: [appointmentId], references: [id])
+  barberId      Int
+  barber        Barber            @relation(fields: [barberId], references: [id])
+  rating        Int               // 1-5
+  comment       String?
+  createdAt     DateTime          @default(now())
+
+  @@map("barber_reviews")
+}
