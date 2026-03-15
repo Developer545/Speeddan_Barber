@@ -1,22 +1,32 @@
 'use client';
 
-/**
- * ClientsClient — CRUD de clientes.
- * Tabla: SpeedDanTable (estilo Speeddansys ERP).
- */
+// ══════════════════════════════════════════════════════════
+// CLIENTES — CRUD COMPLETO (patrón Speeddansys ERP)
+// ══════════════════════════════════════════════════════════
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import {
+  Table, Card, Input, Button, Space, Row, Col,
+  Statistic, Tag, Tooltip, Popconfirm, Typography,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  SearchOutlined, PlusOutlined, ReloadOutlined,
+  TeamOutlined, EditOutlined, DeleteOutlined,
+  PhoneOutlined, CheckCircleOutlined, MailOutlined,
+} from '@ant-design/icons';
+
+// Componentes internos del formulario (react-hook-form)
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { FormField } from '@/components/shared/FormField';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { KpiCards } from '@/components/shared/KpiCards';
-import { SpeedDanTable, type SpeedDanColumn } from '@/components/shared/SpeedDanTable';
-import { MagnifyingGlass, UserCircle, Plus, Users, Phone, CheckCircle } from '@phosphor-icons/react';
+import { Button as SdButton }  from '@/components/ui/button';
+import { Input as SdInput }    from '@/components/ui/input';
+import { FormField }           from '@/components/shared/FormField';
+
+const { Title, Text } = Typography;
+
+// ── Tipos ──────────────────────────────────────────────────────────────────
 
 type Client = {
   id: number; fullName: string; email: string; phone: string | null;
@@ -29,37 +39,61 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// ── Componente ─────────────────────────────────────────────────────────────
+
 export default function ClientsClient({ initialClients }: { initialClients: Client[] }) {
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [open,    setOpen]    = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState('');
   const [search,  setSearch]  = useState('');
 
   const { register, handleSubmit, reset } = useForm<FormValues>();
 
+  // Filtro cliente-side
   const filtered = clients.filter(c =>
     c.fullName.toLowerCase().includes(search.toLowerCase()) ||
     c.email.toLowerCase().includes(search.toLowerCase()) ||
     (c.phone ?? '').includes(search),
   );
 
-  function openCreate() {
-    setEditing(null); reset({ fullName: '', email: '', phone: '' }); setError(''); setOpen(true);
-  }
-  function openEdit(c: Client) {
-    setEditing(c); reset({ fullName: c.fullName, email: c.email, phone: c.phone ?? '' }); setError(''); setOpen(true);
-  }
+  // ── Abrir modal crear ──────────────────────────────────
+  const handleNuevo = () => {
+    setEditing(null);
+    reset({ fullName: '', email: '', phone: '' });
+    setError('');
+    setOpen(true);
+  };
 
+  // ── Abrir modal editar ─────────────────────────────────
+  const handleEditar = (c: Client) => {
+    setEditing(c);
+    reset({ fullName: c.fullName, email: c.email, phone: c.phone ?? '' });
+    setError('');
+    setOpen(true);
+  };
+
+  // ── Guardar (crear o editar) ───────────────────────────
   async function onSubmit(values: FormValues) {
-    setLoading(true); setError('');
+    setSaving(true); setError('');
     try {
-      const body = { fullName: values.fullName.trim(), email: values.email.trim().toLowerCase(), phone: values.phone.trim() || undefined };
-      const url  = editing ? `/api/clients/${editing.id}` : '/api/clients';
-      const res  = await fetch(url, { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const body = {
+        fullName: values.fullName.trim(),
+        email:    values.email.trim().toLowerCase(),
+        phone:    values.phone.trim() || undefined,
+      };
+      const url = editing ? `/api/clients/${editing.id}` : '/api/clients';
+      const res = await fetch(url, {
+        method:  editing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+      });
       const json = await res.json();
-      if (!res.ok) { const msg = json.error?.message ?? 'Error al guardar'; setError(msg); toast.error(msg); return; }
+      if (!res.ok) {
+        const msg = json.error?.message ?? 'Error al guardar';
+        setError(msg); toast.error(msg); return;
+      }
       if (editing) {
         setClients(prev => prev.map(c => c.id === editing.id ? { ...c, ...json.data } : c));
         toast.success(`"${values.fullName.trim()}" actualizado`);
@@ -68,108 +102,230 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
         toast.success(`Cliente "${values.fullName.trim()}" creado`);
       }
       setOpen(false);
-    } catch { setError('Error de red'); toast.error('Error de red'); } finally { setLoading(false); }
+    } catch {
+      setError('Error de red'); toast.error('Error de red');
+    } finally { setSaving(false); }
   }
 
-  async function handleDelete(c: Client) {
-    if (!confirm(`¿Eliminar a "${c.fullName}"?\nSi tiene citas se desactivará.`)) return;
+  // ── Eliminar (sin confirm — usa Popconfirm de antd) ────
+  async function handleEliminar(c: Client) {
     const res = await fetch(`/api/clients/${c.id}`, { method: 'DELETE' });
-    if (res.ok) { setClients(prev => prev.filter(x => x.id !== c.id)); toast.success(`"${c.fullName}" eliminado`); }
-    else toast.error('No se pudo eliminar');
+    if (res.ok) {
+      setClients(prev => prev.filter(x => x.id !== c.id));
+      toast.success(`"${c.fullName}" eliminado`);
+    } else {
+      toast.error('No se pudo eliminar');
+    }
   }
 
+  // ── Activar / desactivar ───────────────────────────────
   async function toggleActive(c: Client) {
     const next = !c.active;
-    const res  = await fetch(`/api/clients/${c.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: next }) });
-    if (res.ok) { setClients(prev => prev.map(x => x.id === c.id ? { ...x, active: next } : x)); toast.success(`${c.fullName} ${next ? 'activado' : 'desactivado'}`); }
-    else toast.error('No se pudo cambiar el estado');
+    const res  = await fetch(`/api/clients/${c.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ active: next }),
+    });
+    if (res.ok) {
+      setClients(prev => prev.map(x => x.id === c.id ? { ...x, active: next } : x));
+      toast.success(`${c.fullName} ${next ? 'activado' : 'desactivado'}`);
+    } else { toast.error('No se pudo cambiar el estado'); }
   }
 
-  // ── Columnas SpeedDanTable ────────────────────────────────────────────
-  const columns: SpeedDanColumn<Client>[] = [
+  // ── Columnas de la tabla (patrón Speeddansys) ──────────
+  const columns: ColumnsType<Client> = [
     {
-      key: 'fullName', label: 'Cliente',
-      render: c => (
-        <div style={{ opacity: c.active ? 1 : 0.5 }}>
-          <div style={{ fontWeight: 500 }}>{c.fullName}</div>
-          <div style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 2 }}>{c.email}</div>
+      title:  'Cliente',
+      key:    'fullName',
+      render: (_, r) => (
+        <div style={{ opacity: r.active ? 1 : 0.5 }}>
+          <div style={{ fontWeight: 500 }}>{r.fullName}</div>
+          <Space size={4} style={{ marginTop: 2 }}>
+            <MailOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
+            <Text style={{ fontSize: 12 }} type="secondary">{r.email}</Text>
+          </Space>
         </div>
       ),
     },
     {
-      key: 'phone', label: 'Teléfono', muted: true,
-      render: c => c.phone ?? '—',
+      title:     'Teléfono',
+      dataIndex: 'phone',
+      key:       'phone',
+      width:     140,
+      render:    (v: string | null) => v ? (
+        <Space size={4}>
+          <PhoneOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
+          <Text style={{ fontSize: 12 }}>{v}</Text>
+        </Space>
+      ) : <Text type="secondary">—</Text>,
     },
     {
-      key: 'totalAppointments', label: 'Citas', align: 'center',
-      render: c => (
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: c.totalAppointments > 0 ? 600 : 400, color: c.totalAppointments > 0 ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))' }}>
-          {c.totalAppointments}
-        </span>
+      title:     'Citas',
+      dataIndex: 'totalAppointments',
+      key:       'totalAppointments',
+      width:     80,
+      align:     'center',
+      render:    (v: number) => (
+        <Tag color={v > 0 ? 'blue' : 'default'}
+          style={{ fontVariantNumeric: 'tabular-nums', fontWeight: v > 0 ? 600 : 400 }}>
+          {v}
+        </Tag>
       ),
     },
     {
-      key: 'lastVisit', label: 'Última visita', muted: true,
-      render: c => formatDate(c.lastVisit),
+      title:     'Última visita',
+      dataIndex: 'lastVisit',
+      key:       'lastVisit',
+      width:     140,
+      render:    (v: string | null) => (
+        <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(v)}</Text>
+      ),
     },
     {
-      key: 'active', label: 'Estado',
-      render: c => (
-        <Badge
-          variant={c.active ? 'default' : 'secondary'}
+      title:     'Estado',
+      dataIndex: 'active',
+      key:       'active',
+      width:     100,
+      render:    (v: boolean, r: Client) => (
+        <Tag
+          color={v ? 'success' : 'default'}
           style={{ cursor: 'pointer' }}
-          onClick={() => toggleActive(c)}
+          onClick={() => toggleActive(r)}
         >
-          {c.active ? 'Activo' : 'Inactivo'}
-        </Badge>
+          {v ? 'Activo' : 'Inactivo'}
+        </Tag>
+      ),
+    },
+    {
+      title:  'Acciones',
+      key:    'actions',
+      width:  90,
+      fixed:  'right',
+      render: (_, record) => (
+        <Space size={4}>
+          <Tooltip title="Editar">
+            <Button
+              size="small"
+              type="primary"
+              ghost
+              icon={<EditOutlined />}
+              onClick={() => handleEditar(record)}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="¿Eliminar este cliente?"
+            description="Si tiene citas asociadas se desactivará en su lugar."
+            okText="Eliminar"
+            cancelText="Cancelar"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => handleEliminar(record)}
+          >
+            <Tooltip title="Eliminar">
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
 
+  // ── KPIs ───────────────────────────────────────────────
   const activeCount = clients.filter(c => c.active).length;
   const phoneCount  = clients.filter(c => c.phone).length;
 
   return (
     <>
-      <PageHeader
-        title="Clientes"
-        description={`${activeCount} activos · ${clients.length} total`}
-        action={<Button onClick={openCreate}><Plus size={15} weight="bold" /> Nuevo cliente</Button>}
-      />
+      {/* ── Estadísticas rápidas (igual que Speeddansys) ── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title="Total Clientes"
+              value={clients.length}
+              prefix={<TeamOutlined style={{ color: '#0d9488' }} />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title="Activos"
+              value={activeCount}
+              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title="Con Teléfono"
+              value={phoneCount}
+              prefix={<PhoneOutlined style={{ color: '#722ed1' }} />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Esta Página" value={filtered.length} />
+          </Card>
+        </Col>
+      </Row>
 
-      {/* KPI Cards — estilo Speeddansys */}
-      <KpiCards cards={[
-        { label: 'Total clientes',  value: clients.length, icon: <Users size={20} />,       accent: 'hsl(var(--brand-primary))' },
-        { label: 'Activos',         value: activeCount,    icon: <CheckCircle size={20} />, accent: '#22c55e' },
-        { label: 'Con teléfono',    value: phoneCount,     icon: <Phone size={20} />,       accent: '#8b5cf6' },
-      ]} />
+      {/* ── Tabla principal ───────────────────────────── */}
+      <Card
+        title={<Title level={5} style={{ margin: 0 }}>Clientes</Title>}
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleNuevo}>
+            Nuevo cliente
+          </Button>
+        }
+      >
+        {/* Barra de búsqueda */}
+        <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={14} md={10}>
+            <Input
+              placeholder="Buscar por nombre, email o teléfono..."
+              prefix={<SearchOutlined />}
+              allowClear
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </Col>
+          <Col>
+            <Tooltip title="Limpiar búsqueda">
+              <Button icon={<ReloadOutlined />} onClick={() => setSearch('')} />
+            </Tooltip>
+          </Col>
+        </Row>
 
-      {/* Barra de búsqueda */}
-      <div style={{ marginBottom: 12, maxWidth: 340, position: 'relative' }}>
-        <MagnifyingGlass size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
-        <Input
-          placeholder="Buscar por nombre, email o teléfono…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ paddingLeft: 32 }}
-        />
-      </div>
-
-      {/* Tabla */}
-      <div className="speeddan-card" style={{ overflow: 'hidden' }}>
-        <SpeedDanTable
-          items={filtered}
+        <Table
+          dataSource={filtered}
           columns={columns}
-          emptyIcon={<UserCircle size={34} weight="thin" />}
-          emptyTitle={search ? 'Sin resultados' : 'Sin clientes'}
-          emptyDesc={search ? 'Intenta con otro término de búsqueda.' : 'Agrega el primer cliente de tu barbería.'}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-          pageSize={10}
+          rowKey="id"
+          size="small"
+          scroll={{ x: 600 }}
+          pagination={{
+            pageSize:        10,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '20', '50'],
+            showTotal:       (t, range) => `${range[0]}–${range[1]} de ${t} clientes`,
+          }}
+          locale={{
+            emptyText: (
+              <div style={{ padding: 40, textAlign: 'center' }}>
+                <TeamOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
+                <div style={{ marginTop: 8, color: '#8c8c8c' }}>
+                  {search
+                    ? 'Sin resultados. Intenta con otro término.'
+                    : 'No hay clientes aún. Usa "+ Nuevo cliente".'}
+                </div>
+              </div>
+            ),
+          }}
         />
-      </div>
+      </Card>
 
-      {/* Dialog */}
+      {/* ── Modal Crear / Editar ──────────────────────── */}
       <Dialog open={open} onOpenChange={v => { if (!v) setOpen(false); }}>
         <DialogContent>
           <DialogHeader>
@@ -178,19 +334,19 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
           <form onSubmit={handleSubmit(onSubmit)}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0' }}>
               <FormField label="Nombre completo *">
-                <Input {...register('fullName', { required: true })} placeholder="Juan Pérez" autoFocus />
+                <SdInput {...register('fullName', { required: true })} placeholder="Juan Pérez" autoFocus />
               </FormField>
               <FormField label="Email *">
-                <Input type="email" {...register('email', { required: true })} placeholder="juan@ejemplo.com" />
+                <SdInput type="email" {...register('email', { required: true })} placeholder="juan@ejemplo.com" />
               </FormField>
               <FormField label="Teléfono">
-                <Input {...register('phone')} placeholder="+503 7000-0000" />
+                <SdInput {...register('phone')} placeholder="+503 7000-0000" />
               </FormField>
               {error && <p style={{ color: 'hsl(var(--status-error))', fontSize: 13, margin: 0 }}>{error}</p>}
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={loading}>{loading ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear cliente'}</Button>
+              <SdButton type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</SdButton>
+              <SdButton type="submit" disabled={saving}>{saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear cliente'}</SdButton>
             </DialogFooter>
           </form>
         </DialogContent>
