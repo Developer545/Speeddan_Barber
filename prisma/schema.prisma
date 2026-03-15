@@ -94,6 +94,14 @@ model BarberTenant {
   reviews      BarberReview[]
   sessions     BarberSession[]
 
+  // Módulos de compras / inventario / gastos
+  proveedores        BarberProveedor[]
+  categoriaProductos BarberCategoriaProducto[]
+  productos          BarberProducto[]
+  compras            BarberCompra[]
+  categoriaGastos    BarberCategoriaGasto[]
+  gastos             BarberGasto[]
+
   @@map("barber_tenants")
 }
 
@@ -276,4 +284,200 @@ model BarberReview {
   createdAt     DateTime          @default(now())
 
   @@map("barber_reviews")
+}
+
+// ══════════════════════════════════════════════════════
+// MÓDULO PROVEEDORES
+// ══════════════════════════════════════════════════════
+
+model BarberProveedor {
+  id           Int          @id @default(autoincrement())
+  tenantId     Int
+  tenant       BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nombre       String
+  nit          String?
+  nrc          String?
+  correo       String?
+  telefono     String?
+  tipo         String       @default("NACIONAL") // NACIONAL | INTERNACIONAL
+  contacto     String?
+  plazoCredito Int          @default(0)           // días de crédito
+  direccion    String?
+  activo       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  compras BarberCompra[]
+
+  @@index([tenantId])
+  @@map("barber_proveedores")
+}
+
+// ══════════════════════════════════════════════════════
+// MÓDULO PRODUCTOS / INVENTARIO
+// ══════════════════════════════════════════════════════
+
+model BarberCategoriaProducto {
+  id        Int       @id @default(autoincrement())
+  tenantId  Int
+  tenant    BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nombre    String
+  activa    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  productos BarberProducto[]
+
+  @@unique([tenantId, nombre])
+  @@map("barber_categorias_producto")
+}
+
+model BarberProducto {
+  id            Int                      @id @default(autoincrement())
+  tenantId      Int
+  tenant        BarberTenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  codigo        String
+  nombre        String
+  descripcion   String?
+  categoriaId   Int?
+  categoria     BarberCategoriaProducto? @relation(fields: [categoriaId], references: [id])
+  precioVenta   Decimal                  @db.Decimal(10, 2)
+  costoPromedio Decimal                  @default(0) @db.Decimal(10, 2)
+  stockMinimo   Decimal                  @default(0) @db.Decimal(10, 2)
+  stockActual   Decimal                  @default(0) @db.Decimal(10, 2)
+  unidadMedida  String                   @default("UNIDAD")
+  activo        Boolean                  @default(true)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  kardex         BarberKardex[]
+  detallesCompra BarberDetalleCompra[]
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId])
+  @@map("barber_productos")
+}
+
+model BarberKardex {
+  id             Int            @id @default(autoincrement())
+  tenantId       Int
+  productoId     Int
+  producto       BarberProducto @relation(fields: [productoId], references: [id])
+  tipoMovimiento String         // COMPRA | ENTRADA | SALIDA | AJUSTE | ANULACION
+  referencia     String
+  cantidad       Decimal        @db.Decimal(10, 2)
+  costoUnitario  Decimal        @db.Decimal(10, 2)
+  costoTotal     Decimal        @db.Decimal(10, 2)
+  stockAnterior  Decimal        @db.Decimal(10, 2)
+  stockNuevo     Decimal        @db.Decimal(10, 2)
+  notas          String?
+  fecha          DateTime       @default(now())
+  createdAt      DateTime       @default(now())
+
+  @@index([tenantId])
+  @@index([productoId])
+  @@map("barber_kardex")
+}
+
+// ══════════════════════════════════════════════════════
+// MÓDULO COMPRAS
+// ══════════════════════════════════════════════════════
+
+model BarberCompra {
+  id              Int              @id @default(autoincrement())
+  tenantId        Int
+  tenant          BarberTenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  proveedorId     Int?
+  proveedor       BarberProveedor? @relation(fields: [proveedorId], references: [id])
+  numeroDocumento String
+  tipoDocumento   String           // FACTURA | CCF | RECIBO | TICKET | NOTA
+  tipoCompra      String           @default("PRODUCTO") // PRODUCTO | GASTO_SERVICIO
+  condicionPago   String           @default("CONTADO")  // CONTADO | CREDITO
+  fecha           DateTime
+  subtotal        Decimal          @db.Decimal(10, 2)
+  iva             Decimal          @db.Decimal(10, 2)
+  total           Decimal          @db.Decimal(10, 2)
+  estado          String           @default("REGISTRADA") // REGISTRADA | PAGADA | ANULADA
+  notas           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  detalles BarberDetalleCompra[]
+  pagos    BarberPagoCxP[]
+
+  @@index([tenantId])
+  @@map("barber_compras")
+}
+
+model BarberDetalleCompra {
+  id            Int             @id @default(autoincrement())
+  compraId      Int
+  compra        BarberCompra    @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  productoId    Int?
+  producto      BarberProducto? @relation(fields: [productoId], references: [id])
+  descripcion   String?
+  cantidad      Decimal         @db.Decimal(10, 2)
+  costoUnitario Decimal         @db.Decimal(10, 2)
+  descuento     Decimal         @default(0) @db.Decimal(10, 2)
+  subtotal      Decimal         @db.Decimal(10, 2)
+
+  @@map("barber_detalles_compra")
+}
+
+// ══════════════════════════════════════════════════════
+// MÓDULO CxP — CUENTAS POR PAGAR
+// ══════════════════════════════════════════════════════
+
+model BarberPagoCxP {
+  id         Int          @id @default(autoincrement())
+  tenantId   Int
+  compraId   Int
+  compra     BarberCompra @relation(fields: [compraId], references: [id])
+  monto      Decimal      @db.Decimal(10, 2)
+  metodoPago String       // CASH | CARD | TRANSFER | QR
+  referencia String?
+  notas      String?
+  fecha      DateTime     @default(now())
+  createdAt  DateTime     @default(now())
+
+  @@index([tenantId])
+  @@map("barber_pagos_cxp")
+}
+
+// ══════════════════════════════════════════════════════
+// MÓDULO GASTOS
+// ══════════════════════════════════════════════════════
+
+model BarberCategoriaGasto {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int
+  tenant      BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nombre      String
+  descripcion String?
+  color       String       @default("#0d9488")
+  activo      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  gastos BarberGasto[]
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
+  @@map("barber_categorias_gasto")
+}
+
+model BarberGasto {
+  id          Int                 @id @default(autoincrement())
+  tenantId    Int
+  tenant      BarberTenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoriaId Int
+  categoria   BarberCategoriaGasto @relation(fields: [categoriaId], references: [id])
+  descripcion String
+  monto       Decimal             @db.Decimal(10, 2)
+  fecha       DateTime
+  notas       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([tenantId])
+  @@map("barber_gastos")
 }
