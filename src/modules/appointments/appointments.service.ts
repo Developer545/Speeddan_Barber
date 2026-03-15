@@ -86,14 +86,15 @@ export async function getStats(tenantId: number) {
   const todayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const since30    = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const [citasHoy, citasPendientes, ingresosHoy, clientesActivos] = await Promise.all([
+  const [citasHoy, citasPendientes, ingresosHoy, clientesActivos, citasSemana] = await Promise.all([
     repo.countTodayAppointments(tenantId, todayStart, todayEnd),
     repo.countPendingAppointments(tenantId),
     repo.sumPaymentsToday(tenantId, todayStart, todayEnd),
     repo.countActiveClientsLast30Days(tenantId, since30),
+    repo.countAppointmentsLast7Days(tenantId),
   ]);
 
-  return { citasHoy, citasPendientes, ingresosHoy, clientesActivos };
+  return { citasHoy, citasPendientes, ingresosHoy, clientesActivos, citasSemana };
 }
 
 // ── Serializer ────────────────────────────────────────

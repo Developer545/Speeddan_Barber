@@ -1,38 +1,40 @@
 'use client';
 
-/**
- * /appointments — Página de citas con FullCalendar + lista.
- * Client Component: carga datos via API en el cliente.
- */
+// ══════════════════════════════════════════════════════════
+// CITAS — Calendario + lista antd (patrón Speeddansys ERP)
+// ══════════════════════════════════════════════════════════
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
+  Table, Card, Button, Space, Row, Col,
+  Statistic, Tag, Modal, Descriptions,
+  Typography, Segmented,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  PlusOutlined, CalendarOutlined, UnorderedListOutlined,
+  ClockCircleOutlined, CheckCircleOutlined, StopOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
 import AppointmentForm from '@/components/appointments/AppointmentForm';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Plus, CalendarDots, List } from '@phosphor-icons/react';
-import { PageHeader } from '@/components/shared/PageHeader';
 
 const AppointmentCalendar = dynamic(
   () => import('@/components/appointments/AppointmentCalendar'),
-  { ssr: false, loading: () => <div style={{ padding: 32, textAlign: 'center' }}>Cargando calendario...</div> },
+  { ssr: false, loading: () => <div style={{ padding: 32, textAlign: 'center', color: '#8c8c8c' }}>Cargando calendario...</div> },
 );
 
+const { Title, Text } = Typography;
+
+// ── Tipos ───────────────────────────────────────────────
 type Appointment = {
-  id: number;
-  startTime: string;
-  endTime: string;
-  status: string;
-  notes: string | null;
-  cancelReason: string | null;
-  client: { id: number; fullName: string; email: string; phone: string | null };
-  barber: { id: number; user: { id: number; fullName: string } };
+  id: number; startTime: string; endTime: string; status: string;
+  notes: string | null; cancelReason: string | null;
+  client:  { id: number; fullName: string; email: string; phone: string | null };
+  barber:  { id: number; user: { id: number; fullName: string } };
   service: { id: number; name: string; price: number; duration: number; category: string | null };
   payment: { amount: number; method: string; status: string; paidAt: string | null } | null;
 };
@@ -41,6 +43,14 @@ type Barber  = { id: number; user: { fullName: string } };
 type Service = { id: number; name: string; price: number; duration: number };
 type Client  = { id: number; fullName: string };
 
+const STATUS_COLORS: Record<string, string> = {
+  PENDING:     'warning',
+  CONFIRMED:   'processing',
+  IN_PROGRESS: 'processing',
+  COMPLETED:   'success',
+  CANCELLED:   'error',
+  NO_SHOW:     'error',
+};
 const STATUS_LABELS: Record<string, string> = {
   PENDING:     'Pendiente',
   CONFIRMED:   'Confirmada',
@@ -50,25 +60,17 @@ const STATUS_LABELS: Record<string, string> = {
   NO_SHOW:     'No asistió',
 };
 
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  PENDING:     'secondary',
-  CONFIRMED:   'default',
-  IN_PROGRESS: 'default',
-  COMPLETED:   'outline',
-  CANCELLED:   'destructive',
-  NO_SHOW:     'destructive',
-};
-
+// ── Componente ───────────────────────────────────────────
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [barbers,  setBarbers]  = useState<Barber[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [clients,  setClients]  = useState<Client[]>([]);
-  const [view, setView] = useState<'calendar' | 'list'>('calendar');
-  const [loading, setLoading] = useState(true);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [detailAppt, setDetailAppt] = useState<Appointment | null>(null);
-  const [formError, setFormError] = useState('');
+  const [view,     setView]     = useState<string>('calendar');
+  const [loading,  setLoading]  = useState(true);
+  const [createOpen,  setCreateOpen]  = useState(false);
+  const [detailAppt,  setDetailAppt]  = useState<Appointment | null>(null);
+  const [formError,   setFormError]   = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -79,11 +81,9 @@ export default function AppointmentsPage() {
         fetch('/api/barbers').then(r => r.json()),
         fetch('/api/services').then(r => r.json()),
       ]);
-      if (apptRes.success) setAppointments(apptRes.data);
+      if (apptRes.success)   setAppointments(apptRes.data);
       if (barberRes.success) setBarbers(barberRes.data);
-      if (svcRes.success) setServices(svcRes.data.filter((s: Service & { active: boolean }) => s.active));
-
-      // Extraer clientes únicos de las citas
+      if (svcRes.success)    setServices(svcRes.data.filter((s: Service & { active: boolean }) => s.active));
       const clientMap = new Map<number, Client>();
       (apptRes.data ?? []).forEach((a: Appointment) => {
         if (!clientMap.has(a.client.id)) {
@@ -91,20 +91,27 @@ export default function AppointmentsPage() {
         }
       });
       setClients(Array.from(clientMap.values()));
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  async function handleCreateSubmit(values: { clientId: string; barberId: string; serviceId: string; startTime: string; notes: string }) {
-    setFormLoading(true);
-    setFormError('');
+  // ── KPIs computados ────────────────────────────────────
+  const kpis = useMemo(() => ({
+    total:       appointments.length,
+    pendientes:  appointments.filter(a => a.status === 'PENDING').length,
+    confirmadas: appointments.filter(a => a.status === 'CONFIRMED' || a.status === 'IN_PROGRESS').length,
+    completadas: appointments.filter(a => a.status === 'COMPLETED').length,
+  }), [appointments]);
+
+  // ── Crear cita ─────────────────────────────────────────
+  async function handleCreateSubmit(values: {
+    clientId: string; barberId: string; serviceId: string; startTime: string; notes: string;
+  }) {
+    setFormLoading(true); setFormError('');
     try {
       const res = await fetch('/api/appointments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId:  Number(values.clientId),
           barberId:  Number(values.barberId),
@@ -116,27 +123,21 @@ export default function AppointmentsPage() {
       const json = await res.json();
       if (!res.ok) {
         const msg = json.error?.message ?? 'Error al crear cita';
-        setFormError(msg);
-        toast.error(msg);
-        return;
+        setFormError(msg); toast.error(msg); return;
       }
       setAppointments(prev => [...prev, json.data]);
       setCreateOpen(false);
-      toast.success('📅 Cita agendada correctamente');
+      toast.success('Cita agendada correctamente');
     } catch {
-      setFormError('Error de red');
-      toast.error('Error de red. Verifica tu conexión.');
-    } finally {
-      setFormLoading(false);
-    }
+      setFormError('Error de red'); toast.error('Error de red');
+    } finally { setFormLoading(false); }
   }
 
+  // ── Cancelar cita ──────────────────────────────────────
   async function handleCancel(appt: Appointment) {
-    if (!confirm('¿Cancelar esta cita?')) return;
     const id = toast.loading('Cancelando cita…');
     const res = await fetch(`/api/appointments/${appt.id}/cancel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason: 'Cancelado por el administrador' }),
     });
     const json = await res.json();
@@ -145,184 +146,221 @@ export default function AppointmentsPage() {
       setDetailAppt(null);
       toast.success('Cita cancelada', { id });
     } else {
-      toast.error(json.error?.message ?? 'No se pudo cancelar la cita', { id });
+      toast.error(json.error?.message ?? 'No se pudo cancelar', { id });
     }
   }
 
+  // ── Columnas de la tabla ───────────────────────────────
+  const columns: ColumnsType<Appointment> = [
+    {
+      title:  'Cliente',
+      key:    'cliente',
+      render: (_, r) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{r.client.fullName}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>{r.service.name}</Text>
+        </div>
+      ),
+    },
+    {
+      title:  'Barbero',
+      key:    'barbero',
+      render: (_, r) => <Text style={{ fontSize: 13 }}>{r.barber.user.fullName}</Text>,
+    },
+    {
+      title:  'Fecha y hora',
+      key:    'startTime',
+      width:  160,
+      render: (_, r) => (
+        <Text style={{ fontSize: 12 }}>
+          {format(new Date(r.startTime), 'dd MMM yyyy, HH:mm', { locale: es })}
+        </Text>
+      ),
+      sorter: (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+    },
+    {
+      title:  'Estado',
+      key:    'status',
+      width:  120,
+      render: (_, r) => (
+        <Tag color={STATUS_COLORS[r.status] ?? 'default'}>
+          {STATUS_LABELS[r.status] ?? r.status}
+        </Tag>
+      ),
+    },
+    {
+      title:  'Precio',
+      key:    'precio',
+      width:  90,
+      align:  'right',
+      render: (_, r) => (
+        <Text style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+          ${r.service.price.toFixed(2)}
+        </Text>
+      ),
+    },
+    {
+      title:  'Acciones',
+      key:    'actions',
+      width:  80,
+      fixed:  'right',
+      render: (_, record) => (
+        <Button size="small" type="primary" ghost onClick={() => setDetailAppt(record)}>
+          Ver
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div>
-      <PageHeader
-        title="Citas"
-        description={`${appointments.length} cita${appointments.length !== 1 ? 's' : ''} total`}
-        action={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant={view === 'calendar' ? 'default' : 'outline'} size="sm" onClick={() => setView('calendar')}>
-              <CalendarDots size={15} weight={view === 'calendar' ? 'bold' : 'regular'} /> Calendario
-            </Button>
-            <Button variant={view === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setView('list')}>
-              <List size={15} weight={view === 'list' ? 'bold' : 'regular'} /> Lista
-            </Button>
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus size={15} weight="bold" /> Nueva cita
-            </Button>
-          </div>
-        }
-      />
+      {/* ── KPIs ── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Total citas" value={kpis.total}
+              prefix={<CalendarOutlined style={{ color: '#0d9488' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Pendientes" value={kpis.pendientes}
+              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Confirmadas / En curso" value={kpis.confirmadas}
+              prefix={<TeamOutlined style={{ color: '#0284c7' }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Completadas" value={kpis.completadas}
+              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} />
+          </Card>
+        </Col>
+      </Row>
 
-      {loading ? (
-        <div style={{ padding: 48, textAlign: 'center', color: 'hsl(var(--text-muted))' }}>Cargando...</div>
-      ) : view === 'calendar' ? (
-        <AppointmentCalendar
-          appointments={appointments}
-          onEventClick={(calAppt) => {
-            const full = appointments.find(a => a.id === calAppt.id) ?? null;
-            setDetailAppt(full);
-          }}
-        />
-      ) : (
-        <AppointmentsList
-          appointments={appointments}
-          onDetail={setDetailAppt}
-        />
-      )}
-
-      {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nueva cita</DialogTitle>
-          </DialogHeader>
-          <AppointmentForm
-            barbers={barbers}
-            services={services}
-            clients={clients}
-            onSubmit={handleCreateSubmit}
-            loading={formLoading}
-            error={formError}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Detail Dialog */}
-      <Dialog open={!!detailAppt} onOpenChange={v => { if (!v) setDetailAppt(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Detalle de cita</DialogTitle>
-          </DialogHeader>
-          {detailAppt && (
-            <AppointmentDetail
-              appt={detailAppt}
-              onCancel={() => handleCancel(detailAppt)}
+      {/* ── Tabla / Calendario ── */}
+      <Card
+        title={<Title level={5} style={{ margin: 0 }}>Citas</Title>}
+        extra={
+          <Space>
+            <Segmented
+              value={view}
+              onChange={v => setView(v as string)}
+              options={[
+                { value: 'calendar', icon: <CalendarOutlined />,      label: 'Calendario' },
+                { value: 'list',     icon: <UnorderedListOutlined />,  label: 'Lista' },
+              ]}
             />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+              Nueva cita
+            </Button>
+          </Space>
+        }
+      >
+        {loading ? (
+          <div style={{ padding: 48, textAlign: 'center', color: '#8c8c8c' }}>Cargando...</div>
+        ) : view === 'calendar' ? (
+          <AppointmentCalendar
+            appointments={appointments}
+            onEventClick={(calAppt) => {
+              const full = appointments.find(a => a.id === calAppt.id) ?? null;
+              setDetailAppt(full);
+            }}
+          />
+        ) : (
+          <Table
+            dataSource={appointments}
+            columns={columns}
+            rowKey="id"
+            size="small"
+            scroll={{ x: 700 }}
+            pagination={{
+              pageSize:        10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal:       (t, range) => `${range[0]}–${range[1]} de ${t} citas`,
+            }}
+            locale={{ emptyText: (
+              <div style={{ padding: 40, textAlign: 'center' }}>
+                <StopOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
+                <div style={{ marginTop: 8, color: '#8c8c8c' }}>No hay citas registradas.</div>
+              </div>
+            ) }}
+          />
+        )}
+      </Card>
 
-// ── Sub-components ────────────────────────────────────
+      {/* ── Modal Nueva cita ── */}
+      <Modal
+        open={createOpen}
+        onCancel={() => setCreateOpen(false)}
+        title="Nueva cita"
+        footer={null}
+        width={520}
+        destroyOnHidden
+      >
+        <AppointmentForm
+          barbers={barbers}
+          services={services}
+          clients={clients}
+          onSubmit={handleCreateSubmit}
+          loading={formLoading}
+          error={formError}
+        />
+      </Modal>
 
-function AppointmentsList({
-  appointments,
-  onDetail,
-}: {
-  appointments: Appointment[];
-  onDetail: (a: Appointment) => void;
-}) {
-  if (appointments.length === 0) {
-    return (
-      <div style={{
-        background: 'hsl(var(--bg-surface))', border: '1px solid hsl(var(--border-default))',
-        borderRadius: 'var(--radius-lg)', padding: '48px 24px', textAlign: 'center',
-        color: 'hsl(var(--text-muted))',
-      }}>
-        No hay citas registradas.
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {appointments.map(a => (
-        <div key={a.id}
-          onClick={() => onDetail(a)}
-          style={{
-            background: 'hsl(var(--bg-surface))',
-            border: '1px solid hsl(var(--border-default))',
-            borderRadius: 'var(--radius-md)',
-            padding: '12px 16px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500, color: 'hsl(var(--text-primary))' }}>
-              {a.client.fullName}
-            </div>
-            <div style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 2 }}>
-              {a.service.name} — {a.barber.user.fullName}
-            </div>
-          </div>
-          <div style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>
-            {format(new Date(a.startTime), 'dd MMM, HH:mm', { locale: es })}
-          </div>
-          <Badge variant={STATUS_VARIANTS[a.status] ?? 'secondary'}>
-            {STATUS_LABELS[a.status] ?? a.status}
-          </Badge>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AppointmentDetail({ appt, onCancel }: { appt: Appointment; onCancel: () => void }) {
-  const canCancel = !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(appt.status);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
-        <InfoRow label="Cliente"  value={appt.client.fullName} />
-        <InfoRow label="Barbero"  value={appt.barber.user.fullName} />
-        <InfoRow label="Servicio" value={appt.service.name} />
-        <InfoRow label="Precio"   value={`$${appt.service.price.toFixed(2)}`} />
-        <InfoRow label="Inicio"   value={format(new Date(appt.startTime), 'dd MMM yyyy, HH:mm', { locale: es })} />
-        <InfoRow label="Fin"      value={format(new Date(appt.endTime), 'HH:mm', { locale: es })} />
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 12, color: 'hsl(var(--text-muted))' }}>Estado:</span>
-        <Badge variant={STATUS_VARIANTS[appt.status] ?? 'secondary'}>
-          {STATUS_LABELS[appt.status] ?? appt.status}
-        </Badge>
-      </div>
-      {appt.notes && (
-        <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', margin: 0 }}>
-          Nota: {appt.notes}
-        </p>
-      )}
-      {appt.cancelReason && (
-        <p style={{ fontSize: 13, color: 'hsl(var(--destructive))', margin: 0 }}>
-          Motivo: {appt.cancelReason}
-        </p>
-      )}
-      {canCancel && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-          <Button variant="destructive" size="sm" onClick={onCancel}>
-            Cancelar cita
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span style={{ fontSize: 11, color: 'hsl(var(--text-muted))', display: 'block', marginBottom: 2 }}>{label}</span>
-      <span style={{ fontWeight: 500 }}>{value}</span>
+      {/* ── Modal Detalle ── */}
+      <Modal
+        open={!!detailAppt}
+        onCancel={() => setDetailAppt(null)}
+        title="Detalle de cita"
+        footer={
+          detailAppt && !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(detailAppt.status) ? (
+            <Button danger onClick={() => detailAppt && handleCancel(detailAppt)}>
+              Cancelar cita
+            </Button>
+          ) : null
+        }
+        width={520}
+        destroyOnHidden
+      >
+        {detailAppt && (
+          <>
+            <Descriptions size="small" column={2} style={{ marginBottom: 12 }}>
+              <Descriptions.Item label="Cliente">{detailAppt.client.fullName}</Descriptions.Item>
+              <Descriptions.Item label="Barbero">{detailAppt.barber.user.fullName}</Descriptions.Item>
+              <Descriptions.Item label="Servicio">{detailAppt.service.name}</Descriptions.Item>
+              <Descriptions.Item label="Precio">${detailAppt.service.price.toFixed(2)}</Descriptions.Item>
+              <Descriptions.Item label="Inicio">
+                {format(new Date(detailAppt.startTime), 'dd MMM yyyy, HH:mm', { locale: es })}
+              </Descriptions.Item>
+              <Descriptions.Item label="Fin">
+                {format(new Date(detailAppt.endTime), 'HH:mm', { locale: es })}
+              </Descriptions.Item>
+            </Descriptions>
+            <Space>
+              <Text type="secondary" style={{ fontSize: 12 }}>Estado:</Text>
+              <Tag color={STATUS_COLORS[detailAppt.status] ?? 'default'}>
+                {STATUS_LABELS[detailAppt.status] ?? detailAppt.status}
+              </Tag>
+            </Space>
+            {detailAppt.notes && (
+              <p style={{ fontSize: 13, color: '#595959', marginTop: 8, marginBottom: 0 }}>
+                <strong>Nota:</strong> {detailAppt.notes}
+              </p>
+            )}
+            {detailAppt.cancelReason && (
+              <p style={{ fontSize: 13, color: '#ff4d4f', marginTop: 8, marginBottom: 0 }}>
+                <strong>Motivo cancelación:</strong> {detailAppt.cancelReason}
+              </p>
+            )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

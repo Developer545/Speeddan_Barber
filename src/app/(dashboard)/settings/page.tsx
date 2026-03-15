@@ -1,85 +1,56 @@
 'use client';
 
-/**
- * /settings — Configuración del tenant.
- * Client Component con dos secciones: Info y Apariencia.
- */
+// ══════════════════════════════════════════════════════════
+// CONFIGURACIÓN — Datos y apariencia del tenant
+// ══════════════════════════════════════════════════════════
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { FormField } from '@/components/shared/FormField';
-import { PageHeader } from '@/components/shared/PageHeader';
+import {
+  Card, Button, Input, Row, Col, Tag, Typography, Space, Spin,
+} from 'antd';
+import {
+  SaveOutlined, SettingOutlined, BgColorsOutlined, InfoCircleOutlined,
+} from '@ant-design/icons';
 
+const { Title, Text } = Typography;
+
+// ── Tipos ───────────────────────────────────────────────
 const PLAN_LABELS: Record<string, string> = {
   TRIAL: 'Prueba', BASIC: 'Básico', PRO: 'Pro', ENTERPRISE: 'Empresarial',
 };
+const PLAN_COLORS: Record<string, string> = {
+  TRIAL: 'default', BASIC: 'blue', PRO: 'purple', ENTERPRISE: 'gold',
+};
 
 type Tenant = {
-  id:          number;
-  slug:        string;
-  name:        string;
-  email:       string | null;
-  phone:       string | null;
-  address:     string | null;
-  city:        string | null;
-  country:     string;
-  logoUrl:     string | null;
-  plan:        string;
-  status:      string;
-  themeConfig: Record<string, string>;
-  trialEndsAt: string | null;
-  paidUntil:   string | null;
+  id: number; slug: string; name: string; email: string | null;
+  phone: string | null; address: string | null; city: string | null;
+  country: string; logoUrl: string | null; plan: string; status: string;
+  themeConfig: Record<string, string>; trialEndsAt: string | null; paidUntil: string | null;
 };
 
-type InfoForm = {
-  name:    string;
-  email:   string;
-  phone:   string;
-  address: string;
-  city:    string;
-};
+type InfoForm  = { name: string; email: string; phone: string; address: string; city: string };
+type ThemeForm = { brandPrimary: string };
 
-type ThemeForm = {
-  brandPrimary: string;
-};
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+// Helper label wrapper
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      background:   'hsl(var(--bg-surface))',
-      border:       '1px solid hsl(var(--border-default))',
-      borderRadius: 'var(--radius-lg)',
-      padding:      24,
-      marginBottom: 20,
-    }}>
-      <h2 style={{ fontSize: 15, fontWeight: 600, color: 'hsl(var(--text-primary))', margin: '0 0 18px' }}>
-        {title}
-      </h2>
+    <div style={{ fontSize: 12, fontWeight: 500, color: '#595959', marginBottom: 4 }}>
       {children}
     </div>
   );
 }
 
+// ── Componente ───────────────────────────────────────────
 export default function SettingsPage() {
-  const [tenant, setTenant]           = useState<Tenant | null>(null);
+  const [tenant,      setTenant]      = useState<Tenant | null>(null);
   const [infoLoading, setInfoLoading] = useState(false);
-  const [infoMsg, setInfoMsg]         = useState('');
-  const [infoError, setInfoError]     = useState('');
+  const [infoError,   setInfoError]   = useState('');
 
-  const {
-    register: regInfo,
-    handleSubmit: handleInfo,
-    reset: resetInfo,
-  } = useForm<InfoForm>();
-
-  const {
-    register: regTheme,
-    handleSubmit: handleTheme,
-  } = useForm<ThemeForm>();
+  const { register: regInfo, handleSubmit: handleInfo, reset: resetInfo } = useForm<InfoForm>();
+  const { register: regTheme, handleSubmit: handleTheme }                 = useForm<ThemeForm>();
 
   useEffect(() => {
     fetch('/api/settings')
@@ -99,40 +70,30 @@ export default function SettingsPage() {
   }, [resetInfo]);
 
   async function onInfoSubmit(values: InfoForm) {
-    setInfoLoading(true);
-    setInfoMsg('');
-    setInfoError('');
+    setInfoLoading(true); setInfoError('');
     try {
       const res = await fetch('/api/settings', {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(values),
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
       });
       const json = await res.json();
       if (!res.ok) {
         const msg = json.error?.message ?? 'Error al guardar';
-        setInfoError(msg);
-        toast.error(msg);
-        return;
+        setInfoError(msg); toast.error(msg); return;
       }
       setTenant(json.data);
-      setInfoMsg('Cambios guardados ✓');
       toast.success('Información actualizada correctamente');
     } catch {
-      setInfoError('Error de red');
-      toast.error('Error de red. Verifica tu conexión.');
-    } finally {
-      setInfoLoading(false);
-    }
+      setInfoError('Error de red'); toast.error('Error de red');
+    } finally { setInfoLoading(false); }
   }
 
   async function onThemeSubmit(values: ThemeForm) {
     const hsl = values.brandPrimary.trim();
     const id  = toast.loading('Aplicando color…');
     const res = await fetch('/api/settings', {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ themeConfig: { '--brand-primary': hsl } }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ themeConfig: { '--brand-primary': hsl } }),
     });
     const json = await res.json();
     if (res.ok) {
@@ -146,112 +107,146 @@ export default function SettingsPage() {
 
   if (!tenant) {
     return (
-      <div style={{ color: 'hsl(var(--text-muted))', padding: '40px 0', textAlign: 'center' }}>
-        Cargando configuración…
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+        <Spin size="large" tip="Cargando configuración…" />
       </div>
     );
   }
 
-  const primaryHSL = (tenant.themeConfig as Record<string, string>)['--brand-primary'] ?? '213 94% 47%';
+  const primaryHSL = (tenant.themeConfig as Record<string, string>)['--brand-primary'] ?? '172 83% 32%';
 
   return (
     <div>
-      <PageHeader
-        title="Configuración"
-        description="Datos y apariencia de tu barbería"
-      />
+      <div style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: '0 0 4px' }}>
+          <SettingOutlined style={{ marginRight: 8, color: '#0d9488' }} />
+          Configuración
+        </Title>
+        <Text type="secondary">Datos y apariencia de tu barbería</Text>
+      </div>
 
-      {/* Plan actual */}
-      <Section title="Plan y estado">
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* ── Plan y estado ── */}
+      <Card
+        title={
+          <Space>
+            <InfoCircleOutlined style={{ color: '#0d9488' }} />
+            <span>Plan y estado</span>
+          </Space>
+        }
+        size="small"
+        style={{ marginBottom: 16 }}
+      >
+        <Space wrap size={24}>
           <div>
-            <span style={{ fontSize: 12, color: 'hsl(var(--text-muted))', display: 'block', marginBottom: 4 }}>Plan</span>
-            <Badge variant="default">{PLAN_LABELS[tenant.plan] ?? tenant.plan}</Badge>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Plan</Text>
+            <Tag color={PLAN_COLORS[tenant.plan] ?? 'default'} style={{ fontWeight: 600 }}>
+              {PLAN_LABELS[tenant.plan] ?? tenant.plan}
+            </Tag>
           </div>
           <div>
-            <span style={{ fontSize: 12, color: 'hsl(var(--text-muted))', display: 'block', marginBottom: 4 }}>Estado</span>
-            <Badge variant={tenant.status === 'ACTIVE' ? 'default' : 'secondary'}>
-              {tenant.status}
-            </Badge>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Estado</Text>
+            <Tag color={tenant.status === 'ACTIVE' ? 'success' : 'warning'}>
+              {tenant.status === 'ACTIVE' ? 'Activo' : tenant.status}
+            </Tag>
           </div>
           <div>
-            <span style={{ fontSize: 12, color: 'hsl(var(--text-muted))', display: 'block', marginBottom: 4 }}>Slug</span>
-            <code style={{ fontSize: 13, background: 'hsl(var(--bg-page))', padding: '2px 8px', borderRadius: 4 }}>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Subdominio</Text>
+            <code style={{ fontSize: 13, background: '#f5f5f5', padding: '2px 8px', borderRadius: 4, border: '1px solid #e8e8e8' }}>
               {tenant.slug}
             </code>
           </div>
           {tenant.trialEndsAt && (
             <div>
-              <span style={{ fontSize: 12, color: 'hsl(var(--text-muted))', display: 'block', marginBottom: 4 }}>Trial hasta</span>
-              <span style={{ fontSize: 13 }}>{new Date(tenant.trialEndsAt).toLocaleDateString('es-SV')}</span>
+              <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Trial hasta</Text>
+              <Text style={{ fontSize: 13 }}>{new Date(tenant.trialEndsAt).toLocaleDateString('es-SV')}</Text>
             </div>
           )}
-        </div>
-      </Section>
+        </Space>
+      </Card>
 
-      {/* Info básica */}
-      <Section title="Información del negocio">
+      {/* ── Información del negocio ── */}
+      <Card
+        title={
+          <Space>
+            <InfoCircleOutlined style={{ color: '#0d9488' }} />
+            <span>Información del negocio</span>
+          </Space>
+        }
+        size="small"
+        style={{ marginBottom: 16 }}
+      >
         <form onSubmit={handleInfo(onInfoSubmit)}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
-            <FormField label="Nombre del negocio *" id="cfg-name">
-              <Input id="cfg-name" {...regInfo('name', { required: true })} placeholder="Speeddan Barbería" />
-            </FormField>
-            <FormField label="Email de contacto" id="cfg-email">
-              <Input id="cfg-email" type="email" {...regInfo('email')} placeholder="info@barberia.com" />
-            </FormField>
-            <FormField label="Teléfono" id="cfg-phone">
-              <Input id="cfg-phone" {...regInfo('phone')} placeholder="+503 2222-0000" />
-            </FormField>
-            <FormField label="Ciudad" id="cfg-city">
-              <Input id="cfg-city" {...regInfo('city')} placeholder="San Salvador" />
-            </FormField>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <FormField label="Dirección" id="cfg-address">
-                <Input id="cfg-address" {...regInfo('address')} placeholder="Calle Principal #123, Col. Centro" />
-              </FormField>
-            </div>
-          </div>
-
-          {infoError && <p style={{ color: 'hsl(var(--destructive))', fontSize: 13, marginTop: 10 }}>{infoError}</p>}
-          {infoMsg   && <p style={{ color: 'hsl(var(--color-success))', fontSize: 13, marginTop: 10 }}>{infoMsg}</p>}
-
+          <Row gutter={[16, 12]}>
+            <Col xs={24} md={12}>
+              <FieldLabel>Nombre del negocio *</FieldLabel>
+              <Input {...regInfo('name', { required: true })} placeholder="Speeddan Barbería" />
+            </Col>
+            <Col xs={24} md={12}>
+              <FieldLabel>Email de contacto</FieldLabel>
+              <Input type="email" {...regInfo('email')} placeholder="info@barberia.com" />
+            </Col>
+            <Col xs={24} md={12}>
+              <FieldLabel>Teléfono</FieldLabel>
+              <Input {...regInfo('phone')} placeholder="+503 2222-0000" />
+            </Col>
+            <Col xs={24} md={12}>
+              <FieldLabel>Ciudad</FieldLabel>
+              <Input {...regInfo('city')} placeholder="San Salvador" />
+            </Col>
+            <Col xs={24}>
+              <FieldLabel>Dirección</FieldLabel>
+              <Input {...regInfo('address')} placeholder="Calle Principal #123, Col. Centro" />
+            </Col>
+          </Row>
+          {infoError && (
+            <p style={{ color: '#ff4d4f', fontSize: 13, marginTop: 10, marginBottom: 0 }}>{infoError}</p>
+          )}
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button type="submit" disabled={infoLoading}>
+            <Button type="primary" htmlType="submit" loading={infoLoading} icon={<SaveOutlined />}>
               {infoLoading ? 'Guardando...' : 'Guardar cambios'}
             </Button>
           </div>
         </form>
-      </Section>
+      </Card>
 
-      {/* Apariencia */}
-      <Section title="Apariencia (Color principal)">
+      {/* ── Apariencia ── */}
+      <Card
+        title={
+          <Space>
+            <BgColorsOutlined style={{ color: '#0d9488' }} />
+            <span>Apariencia — Color principal</span>
+          </Space>
+        }
+        size="small"
+      >
         <form onSubmit={handleTheme(onThemeSubmit)}>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <FormField label="Color primario (HSL sin hsl())" id="cfg-primary">
-                <Input
-                  id="cfg-primary"
-                  {...regTheme('brandPrimary')}
-                  defaultValue={primaryHSL}
-                  placeholder="213 94% 47%"
-                />
-              </FormField>
-              <p style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 4 }}>
-                Formato: <code>H S% L%</code> · Ej: <code>213 94% 47%</code> (azul)
-                · <code>142 70% 45%</code> (verde) · <code>0 72% 51%</code> (rojo)
-              </p>
-            </div>
-            <div>
+          <Row gutter={16} align="bottom">
+            <Col xs={24} sm={16} md={10}>
+              <FieldLabel>Color primario (HSL sin hsl())</FieldLabel>
+              <Input
+                {...regTheme('brandPrimary')}
+                defaultValue={primaryHSL}
+                placeholder="172 83% 32%"
+              />
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                Formato: <code>H S% L%</code> · Ej: <code>172 83% 32%</code> (teal) · <code>213 94% 47%</code> (azul)
+              </Text>
+            </Col>
+            <Col>
               <div style={{
-                width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                width:  40, height: 40, borderRadius: 8,
                 background: `hsl(${primaryHSL})`,
-                border: '2px solid hsl(var(--border-default))',
+                border: '2px solid #e8e8e8', marginBottom: 22,
               }} />
-            </div>
-            <Button type="submit">Aplicar color</Button>
-          </div>
+            </Col>
+            <Col>
+              <Button type="primary" htmlType="submit" icon={<BgColorsOutlined />} style={{ marginBottom: 22 }}>
+                Aplicar color
+              </Button>
+            </Col>
+          </Row>
         </form>
-      </Section>
+      </Card>
     </div>
   );
 }

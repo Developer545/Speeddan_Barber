@@ -1,50 +1,39 @@
 'use client';
 
-/**
- * BillingClient — Caja de pagos con KPIs y tabla.
- * Permite registrar pagos y cambiar estado/método.
- */
+// ══════════════════════════════════════════════════════════
+// CAJA — CRUD COMPLETO (patrón Speeddansys ERP)
+// ══════════════════════════════════════════════════════════
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
-} from '@/components/ui/table';
+  Table, Card, Button, Row, Col,
+  Statistic, Tag, Select, Modal, Input,
+  Typography, Tooltip,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select';
+  PlusOutlined, DollarOutlined, ClockCircleOutlined,
+  CheckCircleOutlined, WarningOutlined, CalendarOutlined,
+} from '@ant-design/icons';
 import { FormField } from '@/components/shared/FormField';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { Plus } from '@phosphor-icons/react';
 
-// ── Types ─────────────────────────────────────────────────
+const { Title, Text } = Typography;
+
+// ── Tipos ──────────────────────────────────────────────────────────────────
 
 type UnpaidAppointment = {
-  id: number;
-  startTime: string;
-  client: { id: number; fullName: string };
-  barber: { user: { fullName: string } };
+  id: number; startTime: string;
+  client:  { id: number; fullName: string };
+  barber:  { user: { fullName: string } };
   service: { id: number; name: string; price: number };
 };
 
 type Payment = {
-  id:        number;
-  amount:    number;
-  method:    string;
-  status:    string;
-  paidAt:    string | null;
-  createdAt: string;
-  notes:     string | null;
+  id: number; amount: number; method: string; status: string;
+  paidAt: string | null; createdAt: string; notes: string | null;
   appointment: {
-    id:      number;
-    startTime: string;
+    id: number; startTime: string;
     client:  { id: number; fullName: string };
     barber:  { user: { fullName: string } };
     service: { id: number; name: string };
@@ -52,17 +41,8 @@ type Payment = {
 };
 
 type Stats = {
-  ingresosHoy:    number;
-  ingresosMes:    number;
-  pendienteSum:   number;
-  pendienteCount: number;
-};
-
-type FormValues = {
-  appointmentId: string;
-  amount:        string;
-  method:        string;
-  notes:         string;
+  ingresosHoy: number; ingresosMes: number;
+  pendienteSum: number; pendienteCount: number;
 };
 
 // ── Helpers ───────────────────────────────────────────────
@@ -70,9 +50,8 @@ type FormValues = {
 const METHOD_LABELS: Record<string, string> = {
   CASH: 'Efectivo', CARD: 'Tarjeta', TRANSFER: 'Transferencia', QR: 'QR',
 };
-
-const STATUS_COLORS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  PAID: 'default', PENDING: 'secondary', REFUNDED: 'destructive',
+const STATUS_COLORS: Record<string, string> = {
+  PAID: 'success', PENDING: 'warning', REFUNDED: 'error',
 };
 const STATUS_LABELS: Record<string, string> = {
   PAID: 'Pagado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado',
@@ -81,282 +60,263 @@ const STATUS_LABELS: Record<string, string> = {
 function formatDate(iso: string | null) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-SV', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   });
 }
+function formatMoney(n: number) { return `$${n.toFixed(2)}`; }
 
-function formatMoney(n: number) {
-  return `$${n.toFixed(2)}`;
-}
-
-// ── Componente principal ──────────────────────────────────
+// ── Componente ────────────────────────────────────────────
 
 type Props = {
-  initialPayments:     Payment[];
-  initialUnpaid:       UnpaidAppointment[];
-  initialStats:        Stats;
+  initialPayments: Payment[];
+  initialUnpaid:   UnpaidAppointment[];
+  initialStats:    Stats;
 };
 
 export default function BillingClient({ initialPayments, initialUnpaid, initialStats }: Props) {
-  const [payments, setPayments] = useState<Payment[]>(initialPayments);
-  const [unpaid, setUnpaid]     = useState<UnpaidAppointment[]>(initialUnpaid);
-  const [stats, setStats]       = useState<Stats>(initialStats);
-  const [open, setOpen]         = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [payments,     setPayments]     = useState<Payment[]>(initialPayments);
+  const [unpaid,       setUnpaid]       = useState<UnpaidAppointment[]>(initialUnpaid);
+  const [stats,        setStats]        = useState<Stats>(initialStats);
+  const [open,         setOpen]         = useState(false);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState('');
+  const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
 
-  const { register, handleSubmit, reset, setValue, watch } = useForm<FormValues>({
-    defaultValues: { appointmentId: '', amount: '', method: 'CASH', notes: '' },
-  });
+  // Form state
+  const [apptId, setApptId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [method, setMethod] = useState('CASH');
+  const [notes,  setNotes]  = useState('');
 
-  const methodVal = watch('method') || 'CASH';
-  const apptIdVal = watch('appointmentId') || '';
-
-  // Auto-fill amount when appointment is selected
-  function onApptSelect(v: string | null) {
-    setValue('appointmentId', v ?? '');
+  function onApptSelect(v: string) {
+    setApptId(v);
     const appt = unpaid.find(a => String(a.id) === v);
-    if (appt) setValue('amount', String(appt.service.price));
+    if (appt) setAmount(String(appt.service.price));
   }
 
   function openRegister() {
-    reset({ appointmentId: '', amount: '', method: 'CASH', notes: '' });
-    setError('');
-    setOpen(true);
+    setApptId(''); setAmount(''); setMethod('CASH'); setNotes(''); setError(''); setOpen(true);
   }
 
-  async function onSubmit(values: FormValues) {
-    setLoading(true);
-    setError('');
+  async function handleSubmit() {
+    if (!apptId || !amount) { setError('Selecciona una cita y monto'); return; }
+    setLoading(true); setError('');
     try {
       const res = await fetch('/api/billing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          appointmentId: Number(values.appointmentId),
-          amount:        parseFloat(values.amount),
-          method:        values.method,
-          notes:         values.notes || undefined,
+          appointmentId: Number(apptId),
+          amount:        parseFloat(amount),
+          method,
+          notes:         notes || undefined,
           status:        'PAID',
         }),
       });
       const json = await res.json();
       if (!res.ok) {
         const msg = json.error?.message ?? 'Error al registrar pago';
-        setError(msg);
-        toast.error(msg);
-        return;
+        setError(msg); toast.error(msg); return;
       }
-
       setPayments(prev => [json.data, ...prev]);
-      setUnpaid(prev => prev.filter(a => a.id !== Number(values.appointmentId)));
-      // Actualizar stats localmente
+      setUnpaid(prev => prev.filter(a => a.id !== Number(apptId)));
       setStats(prev => ({
         ...prev,
-        ingresosHoy:    prev.ingresosHoy + parseFloat(values.amount),
-        ingresosMes:    prev.ingresosMes + parseFloat(values.amount),
+        ingresosHoy:    prev.ingresosHoy    + parseFloat(amount),
+        ingresosMes:    prev.ingresosMes    + parseFloat(amount),
         pendienteCount: Math.max(0, prev.pendienteCount - 1),
       }));
       setOpen(false);
-      toast.success(`Pago de $${parseFloat(values.amount).toFixed(2)} registrado`);
+      toast.success(`Pago de ${formatMoney(parseFloat(amount))} registrado`);
     } catch {
-      setError('Error de red');
-      toast.error('Error de red. Verifica tu conexión.');
-    } finally {
-      setLoading(false);
-    }
+      setError('Error de red'); toast.error('Error de red');
+    } finally { setLoading(false); }
   }
 
-  const filtered = filterStatus
-    ? payments.filter(p => p.status === filterStatus)
-    : payments;
+  const filtered = filterStatus ? payments.filter(p => p.status === filterStatus) : payments;
+
+  // ── Columnas ─────────────────────────────────────────────
+  const columns: ColumnsType<Payment> = [
+    {
+      title:  'Cliente',
+      key:    'cliente',
+      render: (_, r) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{r.appointment.client.fullName}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>{r.appointment.service.name}</Text>
+        </div>
+      ),
+    },
+    {
+      title:  'Barbero',
+      key:    'barbero',
+      render: (_, r) => <Text type="secondary" style={{ fontSize: 13 }}>{r.appointment.barber.user.fullName}</Text>,
+    },
+    {
+      title:  'Método',
+      key:    'method',
+      width:  120,
+      render: (_, r) => <Tag style={{ fontSize: 11 }}>{METHOD_LABELS[r.method] ?? r.method}</Tag>,
+    },
+    {
+      title:  'Monto',
+      key:    'amount',
+      width:  100,
+      align:  'right',
+      render: (_, r) => (
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#52c41a' }}>
+          {formatMoney(r.amount)}
+        </Text>
+      ),
+    },
+    {
+      title:  'Estado',
+      key:    'status',
+      width:  110,
+      render: (_, r) => (
+        <Tag color={STATUS_COLORS[r.status] ?? 'default'}>{STATUS_LABELS[r.status] ?? r.status}</Tag>
+      ),
+    },
+    {
+      title:  'Fecha cita',
+      key:    'startTime',
+      width:  160,
+      render: (_, r) => <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(r.appointment.startTime)}</Text>,
+    },
+    {
+      title:  'Fecha pago',
+      key:    'paidAt',
+      width:  160,
+      render: (_, r) => <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(r.paidAt)}</Text>,
+    },
+  ];
 
   return (
     <>
-      <PageHeader
-        title="Caja"
-        description={`${formatMoney(stats.ingresosMes)} este mes · ${stats.pendienteCount} pendiente${stats.pendienteCount !== 1 ? 's' : ''}`}
-        action={unpaid.length > 0 ? (
-          <Button onClick={openRegister}>
-            <Plus size={15} weight="bold" />
-            Registrar pago ({unpaid.length} pendiente{unpaid.length > 1 ? 's' : ''})
-          </Button>
-        ) : undefined}
-      />
+      {/* ── KPIs ── */}
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Ingresos hoy" value={stats.ingresosHoy} precision={2}
+              prefix={<DollarOutlined style={{ color: '#52c41a' }} />} valueStyle={{ color: '#52c41a' }} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Ingresos mes" value={stats.ingresosMes} precision={2}
+              prefix={<CheckCircleOutlined style={{ color: '#0d9488' }} />} valueStyle={{ color: '#0d9488' }} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Pendiente ($)" value={stats.pendienteSum} precision={2}
+              prefix={<WarningOutlined style={{ color: '#f59e0b' }} />} valueStyle={{ color: '#f59e0b' }} />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic title="Citas pendientes" value={stats.pendienteCount}
+              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />} />
+          </Card>
+        </Col>
+      </Row>
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-        {[
-          { label: 'Ingresos hoy',   value: formatMoney(stats.ingresosHoy),    color: 'var(--color-success)' },
-          { label: 'Ingresos mes',   value: formatMoney(stats.ingresosMes),    color: 'var(--color-success)' },
-          { label: 'Pendiente ($)',  value: formatMoney(stats.pendienteSum),   color: 'var(--color-warning)' },
-          { label: 'Pendientes (#)', value: String(stats.pendienteCount),      color: 'var(--color-warning)' },
-        ].map(kpi => (
-          <div key={kpi.label} style={{
-            background:   'hsl(var(--bg-surface))',
-            border:       '1px solid hsl(var(--border-default))',
-            borderRadius: 'var(--radius-lg)',
-            padding:      '16px 20px',
-          }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px' }}>
-              {kpi.label}
-            </p>
-            <p style={{ fontSize: 26, fontWeight: 700, color: `hsl(${kpi.color})`, margin: 0 }}>
-              {kpi.value}
-            </p>
-          </div>
-        ))}
-      </div>
+      {/* ── Tabla ── */}
+      <Card
+        title={<Title level={5} style={{ margin: 0 }}>Registro de pagos</Title>}
+        extra={
+          unpaid.length > 0 && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={openRegister}>
+              Registrar pago ({unpaid.length})
+            </Button>
+          )
+        }
+      >
+        {/* Filtro */}
+        <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={10} md={8}>
+            <Select style={{ width: '100%' }} placeholder="Todos los estados" allowClear
+              value={filterStatus} onChange={v => setFilterStatus(v)}
+              options={[
+                { value: 'PAID',     label: 'Pagados' },
+                { value: 'PENDING',  label: 'Pendientes' },
+                { value: 'REFUNDED', label: 'Reembolsados' },
+              ]}
+            />
+          </Col>
+          {filtered.length > 0 && filterStatus === 'PAID' && (
+            <Col>
+              <Tooltip title="Total filtrado">
+                <Tag color="success" style={{ lineHeight: '32px', padding: '0 12px' }}>
+                  Total: {formatMoney(filtered.reduce((s, p) => s + p.amount, 0))}
+                </Tag>
+              </Tooltip>
+            </Col>
+          )}
+        </Row>
 
-      {/* Barra de filtros */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-        <Select value={filterStatus} onValueChange={v => setFilterStatus(v ?? '')}>
-          <SelectTrigger style={{ width: 200 }}>
-            <SelectValue placeholder="Todos los estados" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
-            <SelectItem value="PAID">Pagados</SelectItem>
-            <SelectItem value="PENDING">Pendientes</SelectItem>
-            <SelectItem value="REFUNDED">Reembolsados</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Tabla */}
-      <div className="speeddan-card" style={{ overflow: 'hidden' }}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Barbero</TableHead>
-              <TableHead>Servicio</TableHead>
-              <TableHead>Método</TableHead>
-              <TableHead>Monto</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Fecha cita</TableHead>
-              <TableHead>Fecha pago</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} style={{ textAlign: 'center', color: 'hsl(var(--text-muted))', padding: '40px 0' }}>
-                  Sin registros de pago
-                </TableCell>
-              </TableRow>
-            )}
-            {filtered.map(p => (
-              <TableRow key={p.id}>
-                <TableCell style={{ fontWeight: 500 }}>
-                  {p.appointment.client.fullName}
-                </TableCell>
-                <TableCell style={{ color: 'hsl(var(--text-secondary))' }}>
-                  {p.appointment.barber.user.fullName}
-                </TableCell>
-                <TableCell style={{ color: 'hsl(var(--text-secondary))' }}>
-                  {p.appointment.service.name}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{METHOD_LABELS[p.method] ?? p.method}</Badge>
-                </TableCell>
-                <TableCell style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                  {formatMoney(p.amount)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_COLORS[p.status] ?? 'outline'}>
-                    {STATUS_LABELS[p.status] ?? p.status}
-                  </Badge>
-                </TableCell>
-                <TableCell style={{ fontSize: 12, color: 'hsl(var(--text-muted))' }}>
-                  {formatDate(p.appointment.startTime)}
-                </TableCell>
-                <TableCell style={{ fontSize: 12, color: 'hsl(var(--text-muted))' }}>
-                  {formatDate(p.paidAt)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {filtered.length > 0 && (
-        <p style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 10, textAlign: 'right' }}>
-          {filtered.length} registros
-          {filterStatus === 'PAID' && ` · Total: ${formatMoney(filtered.reduce((s, p) => s + p.amount, 0))}`}
-        </p>
-      )}
-
-      {/* Diálogo Registrar pago */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Registrar pago</DialogTitle>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
-
-              <FormField label="Cita *">
-                <Select value={apptIdVal} onValueChange={onApptSelect}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar cita" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unpaid.map(a => (
-                      <SelectItem key={a.id} value={String(a.id)}>
-                        {a.client.fullName} — {a.service.name} ({new Date(a.startTime).toLocaleDateString('es-SV')})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <FormField label="Monto ($) *" id="pay-amount">
-                  <Input
-                    id="pay-amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    {...register('amount', { required: true })}
-                    placeholder="10.00"
-                  />
-                </FormField>
-                <FormField label="Método *">
-                  <Select value={methodVal} onValueChange={v => setValue('method', v ?? 'CASH')}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Método" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CASH">Efectivo</SelectItem>
-                      <SelectItem value="CARD">Tarjeta</SelectItem>
-                      <SelectItem value="TRANSFER">Transferencia</SelectItem>
-                      <SelectItem value="QR">QR</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
-
-              <FormField label="Notas" id="pay-notes">
-                <Input id="pay-notes" {...register('notes')} placeholder="Observaciones opcionales" />
-              </FormField>
-
-              {error && <p style={{ color: 'hsl(var(--destructive))', fontSize: 13 }}>{error}</p>}
+        <Table
+          dataSource={filtered} columns={columns} rowKey="id" size="small" scroll={{ x: 800 }}
+          pagination={{
+            pageSize: 10, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'],
+            showTotal: (t, range) => `${range[0]}–${range[1]} de ${t} pagos`,
+          }}
+          locale={{ emptyText: (
+            <div style={{ padding: 40, textAlign: 'center' }}>
+              <CalendarOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
+              <div style={{ marginTop: 8, color: '#8c8c8c' }}>Sin registros de pago.</div>
             </div>
+          ) }}
+        />
+      </Card>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={loading || !apptIdVal}>
-                {loading ? 'Registrando...' : 'Registrar pago'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* ── Modal Registrar pago ── */}
+      <Modal open={open} onCancel={() => setOpen(false)} title="Registrar pago" footer={null} destroyOnHidden>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
+          <FormField label="Cita *">
+            <Select style={{ width: '100%' }} placeholder="Seleccionar cita pendiente"
+              value={apptId || undefined} onChange={onApptSelect} showSearch
+              filterOption={(input, opt) =>
+                (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={unpaid.map(a => ({
+                value: String(a.id),
+                label: `${a.client.fullName} — ${a.service.name} (${new Date(a.startTime).toLocaleDateString('es-SV')})`,
+              }))}
+            />
+          </FormField>
+          <Row gutter={12}>
+            <Col span={12}>
+              <FormField label="Monto ($) *">
+                <Input type="number" step="0.01" min="0.01"
+                  value={amount} onChange={e => setAmount(e.target.value)} placeholder="10.00" />
+              </FormField>
+            </Col>
+            <Col span={12}>
+              <FormField label="Método *">
+                <Select style={{ width: '100%' }} value={method} onChange={v => setMethod(v)}
+                  options={[
+                    { value: 'CASH',     label: 'Efectivo' },
+                    { value: 'CARD',     label: 'Tarjeta' },
+                    { value: 'TRANSFER', label: 'Transferencia' },
+                    { value: 'QR',       label: 'QR' },
+                  ]}
+                />
+              </FormField>
+            </Col>
+          </Row>
+          <FormField label="Notas">
+            <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones opcionales" />
+          </FormField>
+          {error && <p style={{ color: '#ff4d4f', fontSize: 13, margin: 0 }}>{error}</p>}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+          <Button onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button type="primary" loading={loading} disabled={!apptId} onClick={handleSubmit}>
+            {loading ? 'Registrando...' : 'Registrar pago'}
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

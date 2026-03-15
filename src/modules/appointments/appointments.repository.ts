@@ -139,3 +139,18 @@ export async function countActiveClientsLast30Days(tenantId: number, since: Date
   });
   return rows.length;
 }
+
+export async function countAppointmentsLast7Days(tenantId: number): Promise<{ day: string; count: number }[]> {
+  const now     = new Date();
+  const results: { day: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const dayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i + 1);
+    const count    = await prisma.barberAppointment.count({
+      where: { tenantId, startTime: { gte: dayStart, lt: dayEnd } },
+    });
+    const label = dayStart.toLocaleDateString('es-SV', { weekday: 'short' });
+    results.push({ day: label, count });
+  }
+  return results;
+}
