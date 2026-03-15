@@ -8,6 +8,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type Step = 'empresa' | 'credenciales';
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   // Aplicar tema del tenant si existe
   useEffect(() => {

@@ -27,12 +27,17 @@ function getSecret(): Uint8Array {
 }
 
 // ── Sign ──────────────────────────────────────────────────
+// jose v6: setExpirationTime acepta solo timestamps numéricos (no strings '15m')
+const nowSec = () => Math.floor(Date.now() / 1000);
+const ACCESS_TTL  = 15 * 60;           // 15 minutos
+const REFRESH_TTL = 7 * 24 * 60 * 60;  // 7 días
+
 
 export async function signAccessToken(payload: JwtPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(process.env.JWT_EXPIRES_IN ?? '15m')
+    .setExpirationTime(nowSec() + ACCESS_TTL)
     .sign(getSecret());
 }
 
@@ -40,7 +45,7 @@ export async function signRefreshToken(userId: number): Promise<string> {
   return new SignJWT({ sub: String(userId) })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(process.env.JWT_REFRESH_EXPIRES_IN ?? '7d')
+    .setExpirationTime(nowSec() + REFRESH_TTL)
     .sign(getSecret());
 }
 
