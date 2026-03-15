@@ -804,11 +804,11 @@ body {
 
 /* ══════════════════════════════════════════════════════════
    TABLA PROFESIONAL — speeddan-table
-   Copiado de DataTable.tsx del ERP DTE:
+   Estilo Speeddansys ERP:
    • Header: gradiente sutil #fafbfd → #f4f5f8, uppercase 11px bold
    • Separadores de fila: #f0f0f4 (muy claro)
-   • Hover de fila: #fafafa
-   • Acciones: ocultas por defecto, visibles al hover de fila
+   • Hover de fila: teal suave #f0fdf9
+   • Acciones: siempre visibles, outlined (edit=teal, delete=red)
    ══════════════════════════════════════════════════════════ */
 
 .speeddan-table {
@@ -849,21 +849,19 @@ body {
   transition: background 0.12s;
 }
 .speeddan-table__body .speeddan-table__row:hover {
-  background: #fafafa !important;
+  background: #f0fdf9 !important;
 }
 
-/* ── Acciones ocultas → visibles al hover (igual que DTE) ── */
+/* ── Acciones siempre visibles (estilo Speeddansys ERP) ── */
 .speeddan-action-btns {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.speeddan-table__row:hover .speeddan-action-btns {
   opacity: 1;
+  display: inline-flex;
+  gap: 6px;
 }
 
 /* ── Cell ── */
 .speeddan-table__cell {
-  padding: 15px 20px;
+  padding: 10px 16px;
   vertical-align: middle;
   color: hsl(var(--text-primary));
   white-space: nowrap;

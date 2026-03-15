@@ -2,7 +2,7 @@
 
 /**
  * ClientsClient — CRUD de clientes.
- * Tabla: SpeedDanTable (réplica de DataTable.tsx del ERP DTE).
+ * Tabla: SpeedDanTable (estilo Speeddansys ERP).
  */
 
 import { useState } from 'react';
@@ -14,8 +14,9 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { FormField } from '@/components/shared/FormField';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { KpiCards } from '@/components/shared/KpiCards';
 import { SpeedDanTable, type SpeedDanColumn } from '@/components/shared/SpeedDanTable';
-import { MagnifyingGlass, UserCircle, Plus } from '@phosphor-icons/react';
+import { MagnifyingGlass, UserCircle, Plus, Users, Phone, CheckCircle } from '@phosphor-icons/react';
 
 type Client = {
   id: number; fullName: string; email: string; phone: string | null;
@@ -125,17 +126,27 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
     },
   ];
 
+  const activeCount = clients.filter(c => c.active).length;
+  const phoneCount  = clients.filter(c => c.phone).length;
+
   return (
     <>
       <PageHeader
         title="Clientes"
-        description={`${clients.filter(c => c.active).length} activos · ${clients.length} total`}
+        description={`${activeCount} activos · ${clients.length} total`}
         action={<Button onClick={openCreate}><Plus size={15} weight="bold" /> Nuevo cliente</Button>}
       />
 
+      {/* KPI Cards — estilo Speeddansys */}
+      <KpiCards cards={[
+        { label: 'Total clientes',  value: clients.length, icon: <Users size={20} />,       accent: 'hsl(var(--brand-primary))' },
+        { label: 'Activos',         value: activeCount,    icon: <CheckCircle size={20} />, accent: '#22c55e' },
+        { label: 'Con teléfono',    value: phoneCount,     icon: <Phone size={20} />,       accent: '#8b5cf6' },
+      ]} />
+
       {/* Barra de búsqueda */}
-      <div style={{ marginBottom: 16, maxWidth: 320, position: 'relative' }}>
-        <MagnifyingGlass size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
+      <div style={{ marginBottom: 12, maxWidth: 340, position: 'relative' }}>
+        <MagnifyingGlass size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))' }} />
         <Input
           placeholder="Buscar por nombre, email o teléfono…"
           value={search}
@@ -149,20 +160,14 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
         <SpeedDanTable
           items={filtered}
           columns={columns}
-          emptyIcon={<UserCircle size={36} weight="thin" />}
+          emptyIcon={<UserCircle size={34} weight="thin" />}
           emptyTitle={search ? 'Sin resultados' : 'Sin clientes'}
           emptyDesc={search ? 'Intenta con otro término de búsqueda.' : 'Agrega el primer cliente de tu barbería.'}
           onEdit={openEdit}
           onDelete={handleDelete}
+          pageSize={10}
         />
       </div>
-
-      {clients.length > 0 && (
-        <p style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 8, textAlign: 'right' }}>
-          {clients.filter(c => c.active).length} activos · {clients.length} total
-          {search && ` · ${filtered.length} mostrados`}
-        </p>
-      )}
 
       {/* Dialog */}
       <Dialog open={open} onOpenChange={v => { if (!v) setOpen(false); }}>

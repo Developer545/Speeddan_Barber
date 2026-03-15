@@ -2,7 +2,7 @@
 
 /**
  * ServicesClient — CRUD de servicios.
- * Tabla: SpeedDanTable (réplica de DataTable.tsx del ERP DTE).
+ * Tabla: SpeedDanTable (estilo Speeddansys ERP).
  */
 
 import { useState } from 'react';
@@ -15,8 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { FormField } from '@/components/shared/FormField';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { KpiCards } from '@/components/shared/KpiCards';
 import { SpeedDanTable, type SpeedDanColumn } from '@/components/shared/SpeedDanTable';
-import { Plus, Scissors } from '@phosphor-icons/react';
+import { Plus, Scissors, CheckCircle, Tag, CurrencyDollar } from '@phosphor-icons/react';
 
 type Service = {
   id: number; name: string; description: string | null;
@@ -116,6 +117,9 @@ export default function ServicesClient({ initialServices }: { initialServices: S
   ];
 
   const activeCount = services.filter(s => s.active).length;
+  const avgPrice    = services.length
+    ? `$${(services.reduce((a, s) => a + s.price, 0) / services.length).toFixed(0)}`
+    : '$0';
 
   return (
     <>
@@ -125,16 +129,25 @@ export default function ServicesClient({ initialServices }: { initialServices: S
         action={<Button onClick={openCreate}><Plus size={15} weight="bold" /> Nuevo servicio</Button>}
       />
 
+      {/* KPI Cards — estilo Speeddansys */}
+      <KpiCards cards={[
+        { label: 'Total servicios', value: services.length, icon: <Scissors size={20} />,       accent: 'hsl(var(--brand-primary))' },
+        { label: 'Activos',         value: activeCount,     icon: <CheckCircle size={20} />,    accent: '#22c55e' },
+        { label: 'Precio promedio', value: avgPrice,        icon: <CurrencyDollar size={20} />, accent: '#f59e0b' },
+        { label: 'Categorías',      value: Object.keys(CATEGORIES).filter(k => services.some(s => s.category === k)).length, icon: <Tag size={20} />, accent: '#8b5cf6' },
+      ]} />
+
       {/* Tabla */}
       <div className="speeddan-card" style={{ overflow: 'hidden' }}>
         <SpeedDanTable
           items={services}
           columns={columns}
-          emptyIcon={<Scissors size={36} weight="thin" />}
+          emptyIcon={<Scissors size={34} weight="thin" />}
           emptyTitle="Sin servicios"
           emptyDesc="Agrega el primer servicio de tu barbería."
           onEdit={openEdit}
           onDelete={handleDelete}
+          pageSize={10}
         />
       </div>
 
