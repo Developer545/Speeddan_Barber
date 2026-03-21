@@ -3,12 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Row, Col, Card, Button, Select, InputNumber, Tag, Statistic,
-  Modal, Alert, Divider, Badge, Tabs, Table, Tooltip, message, Space, Input
+  Modal, Alert, Divider, Badge, Tabs, Tooltip, Space, Input, Segmented, Avatar
 } from 'antd'
 import {
-  PlusOutlined, DeleteOutlined, ShoppingCartOutlined,
-  UserOutlined, FileTextOutlined, CheckCircleOutlined,
-  ReloadOutlined, InfoCircleOutlined
+  PlusOutlined, DeleteOutlined, FileTextOutlined, CheckCircleOutlined,
+  ReloadOutlined, ScissorOutlined, UserOutlined
 } from '@ant-design/icons'
 import { toast } from 'sonner'
 
@@ -92,6 +91,8 @@ export default function PosClient({
   const [clienteNrc, setClienteNrc] = useState('')
   const [loadingCobrar, setLoadingCobrar] = useState(false)
   const [modalExito, setModalExito] = useState<{ numero: number; total: number; codigoGen: string } | null>(null)
+  const [barberoActivo, setBarberoActivo] = useState<{ id: number; nombre: string } | null>(null)
+  const [categoriaActiva, setCategoriaActiva] = useState<string>('todos')
 
   // ── Cargar datos ────────────────────────────────────────────────────────────
 
@@ -149,25 +150,21 @@ export default function PosClient({
 
   const removeLinea = (key: string) => setLineas(prev => prev.filter(l => l.key !== key))
 
-  const selectBarberoRapido = (barberoId: number, barberoNombre: string) => {
-    // Si hay una línea vacía sin barbero, asignarle este
-    const lineaVacia = lineas.find(l => !l.barberoId)
-    if (lineaVacia) {
-      updateLinea(lineaVacia.key, 'barberoId', barberoId)
-      updateLinea(lineaVacia.key, 'barberoNombre', barberoNombre)
-    } else {
-      // Agregar nueva línea con este barbero
+  const selectServicioRapido = (svc: Servicio) => {
+    // Si hay barbero activo seleccionado, crear siempre una línea nueva con él
+    if (barberoActivo) {
       setLineas(prev => [...prev, {
         key: Date.now().toString(),
-        barberoId, barberoNombre,
-        servicioId: null, descripcion: '',
-        precioUnitario: 0, cantidad: 1, descuento: 0, esGravado: false,
+        barberoId: barberoActivo.id,
+        barberoNombre: barberoActivo.nombre,
+        servicioId: svc.id,
+        descripcion: svc.name,
+        precioUnitario: svc.price,
+        cantidad: 1, descuento: 0, esGravado: false,
       }])
+      return
     }
-  }
-
-  const selectServicioRapido = (svc: Servicio) => {
-    // Asignar al primer ítem sin servicio
+    // Sin barbero activo: asignar al primer ítem sin servicio
     const lineaSinServicio = lineas.find(l => !l.servicioId)
     if (lineaSinServicio) {
       setLineas(prev => prev.map(l =>
@@ -176,7 +173,6 @@ export default function PosClient({
           : l
       ))
     } else {
-      // Agregar nueva línea
       setLineas(prev => [...prev, {
         key: Date.now().toString(),
         barberoId: null, barberoNombre: '',
@@ -317,30 +313,130 @@ export default function PosClient({
         <Col xs={24} lg={14}>
           <Card title={<span>🛒 Nueva Venta</span>} size="small" style={{ marginBottom: 12 }}>
 
-            {/* Botones rápidos barberos */}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6, textTransform: 'uppercase' }}>Barbero</div>
-              <Space wrap>
-                {barberosProp.map(b => (
-                  <Button key={b.id} size="small" onClick={() => selectBarberoRapido(b.id, b.nombre)}
-                    style={{ borderRadius: 6 }}>
-                    ✂️ {b.nombre}
-                  </Button>
-                ))}
-              </Space>
+            {/* ── Selector de barbero activo ── */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                1 · Selecciona barbero
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {barberosProp.length <= 8 ? (
+                  // ≤8 barberos: chips compactos
+                  barberosProp.map(b => {
+                    const activo = barberoActivo?.id === b.id
+                    const iniciales = b.nombre.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => setBarberoActivo(activo ? null : { id: b.id, nombre: b.nombre })}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '4px 10px 4px 4px', borderRadius: 20,
+                          border: activo ? '2px solid #0d9488' : '1.5px solid #d9d9d9',
+                          background: activo ? '#f0fdfa' : '#fff',
+                          cursor: 'pointer', fontWeight: activo ? 600 : 400,
+                          color: activo ? '#0d9488' : '#333', fontSize: 13,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <Avatar size={22}
+                          style={{ background: activo ? '#0d9488' : '#e0e0e0', color: activo ? '#fff' : '#555', fontSize: 10, flexShrink: 0 }}>
+                          {iniciales}
+                        </Avatar>
+                        {b.nombre.split(' ')[0]}
+                      </button>
+                    )
+                  })
+                ) : (
+                  // >8 barberos: Select con búsqueda
+                  <Select
+                    showSearch
+                    placeholder="Buscar barbero..."
+                    style={{ width: 280 }}
+                    allowClear
+                    value={barberoActivo?.id}
+                    onChange={(v, opt: any) => setBarberoActivo(v ? { id: v, nombre: opt?.label?.replace('✂️ ', '') || '' } : null)}
+                    filterOption={(input, opt) => (opt?.label as string || '').toLowerCase().includes(input.toLowerCase())}
+                    options={barberosProp.map(b => ({ value: b.id, label: '✂️ ' + b.nombre }))}
+                  />
+                )}
+              </div>
+              {barberoActivo && (
+                <div style={{ marginTop: 6, fontSize: 12, color: '#0d9488' }}>
+                  ✂️ <b>{barberoActivo.nombre}</b> seleccionado — elige un servicio abajo para agregar la línea
+                </div>
+              )}
             </div>
 
-            {/* Botones rápidos servicios */}
+            {/* ── Servicios por categoría ── */}
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6, textTransform: 'uppercase' }}>Servicio rápido</div>
-              <Space wrap>
-                {serviciosProp.filter(s => s.price > 0).map(s => (
-                  <Button key={s.id} size="small" type="dashed" onClick={() => selectServicioRapido(s)}
-                    style={{ borderRadius: 6 }}>
-                    {s.name} — {fmt(s.price)}
-                  </Button>
-                ))}
-              </Space>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                2 · Elige servicio
+              </div>
+
+              {/* Tabs de categoría */}
+              {(() => {
+                const cats = ['todos', ...Array.from(new Set(serviciosProp.map(s => s.category || 'otro'))).sort()]
+                const labels: Record<string, string> = {
+                  todos: '🔍 Todos', cabello: '💇 Cabello', barba: '🧔 Barba',
+                  combo: '⭐ Combos', tratamiento: '💆 Tratamientos', otro: '📦 Otros',
+                }
+                const serviciosFiltrados = categoriaActiva === 'todos'
+                  ? serviciosProp
+                  : serviciosProp.filter(s => (s.category || 'otro') === categoriaActiva)
+
+                return (
+                  <>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+                      {cats.map(cat => (
+                        <button key={cat} onClick={() => setCategoriaActiva(cat)} style={{
+                          padding: '3px 10px', borderRadius: 12, fontSize: 12, cursor: 'pointer',
+                          border: categoriaActiva === cat ? '2px solid #0d9488' : '1.5px solid #d9d9d9',
+                          background: categoriaActiva === cat ? '#0d9488' : '#fff',
+                          color: categoriaActiva === cat ? '#fff' : '#555',
+                          fontWeight: categoriaActiva === cat ? 600 : 400,
+                          transition: 'all 0.15s',
+                        }}>
+                          {labels[cat] || cat}
+                          <span style={{ marginLeft: 4, opacity: 0.7, fontSize: 10 }}>
+                            ({cat === 'todos' ? serviciosProp.length : serviciosProp.filter(s => (s.category || 'otro') === cat).length})
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                      gap: 6,
+                      maxHeight: 220,
+                      overflowY: 'auto',
+                      padding: '2px 2px 4px',
+                    }}>
+                      {serviciosFiltrados.map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => selectServicioRapido(s)}
+                          title={!barberoActivo ? 'Selecciona primero un barbero' : s.name}
+                          style={{
+                            padding: '6px 8px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+                            border: '1.5px solid #e0e0e0',
+                            background: barberoActivo ? '#fff' : '#fafafa',
+                            color: barberoActivo ? '#222' : '#999',
+                            textAlign: 'left', lineHeight: 1.3,
+                            transition: 'all 0.15s',
+                            opacity: barberoActivo ? 1 : 0.6,
+                          }}
+                          onMouseEnter={e => { if (barberoActivo) (e.currentTarget as HTMLElement).style.borderColor = '#0d9488' }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e0e0e0' }}
+                        >
+                          <div style={{ fontWeight: 500, marginBottom: 2 }}>{s.name}</div>
+                          <div style={{ color: '#0d9488', fontWeight: 700 }}>{fmt(s.price)}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
             <Divider style={{ margin: '8px 0' }} />
