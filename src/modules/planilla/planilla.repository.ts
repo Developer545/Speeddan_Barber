@@ -109,6 +109,16 @@ export async function aprobarPlanilla(tenantId: number, id: number) {
   });
 }
 
+export async function pagarPlanilla(tenantId: number, id: number) {
+  const p = await prisma.barberPlanilla.findFirst({ where: { id, tenantId } });
+  if (!p) throw new Error('Planilla no encontrada');
+  if (p.estado !== 'APROBADA') throw new Error('Solo se pueden marcar como pagadas las planillas aprobadas');
+  return prisma.barberPlanilla.update({
+    where: { id },
+    data:  { estado: 'PAGADA' },
+  });
+}
+
 export async function eliminarPlanilla(tenantId: number, id: number) {
   const p = await prisma.barberPlanilla.findFirst({ where: { id, tenantId } });
   if (!p) throw new Error('Planilla no encontrada');

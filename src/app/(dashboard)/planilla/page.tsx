@@ -7,16 +7,18 @@ import {
   getConfigPlanilla,
   getConfigsBarberos,
 } from '@/modules/planilla/planilla.repository';
+import { tenantsRepository } from '@/modules/tenants/tenants.repository';
 
 export default async function PlanillaPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const [planillas, barberos, configRows, barberosConfig] = await Promise.all([
+  const [planillas, barberos, configRows, barberosConfig, tenant] = await Promise.all([
     listarPlanillas(user.tenantId),
     getBarberosParaPlanilla(user.tenantId),
     getConfigPlanilla(user.tenantId),
     getConfigsBarberos(user.tenantId),
+    tenantsRepository.findById(user.tenantId),
   ]);
 
   const planillasSer = planillas.map(p => ({
@@ -83,6 +85,7 @@ export default async function PlanillaPage() {
       configInit={configSer}
       barberosConfigInit={barberosConfigSer}
       hasConfig={configRows.length > 0}
+      negocio={tenant?.name ?? user.slug}
     />
   );
 }

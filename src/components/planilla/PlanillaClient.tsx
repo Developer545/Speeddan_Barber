@@ -12,7 +12,12 @@ import {
   TeamOutlined, CalendarOutlined, EditOutlined,
   ReloadOutlined, SafetyOutlined, BankOutlined,
   PercentageOutlined, GiftOutlined, SunOutlined,
+  PrinterOutlined, DollarCircleOutlined, FilePdfOutlined,
 } from '@ant-design/icons';
+import {
+  abrirPlanillaPDF, abrirComprobanteBarbero,
+  type PlanillaViewerData, type PlanillaDetalle,
+} from '@/lib/planilla-viewer';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 
@@ -56,6 +61,7 @@ interface Props {
   configInit: ConfigItem[];
   barberosConfigInit: unknown[];
   hasConfig: boolean;
+  negocio: string;
 }
 
 const TIPO_PAGO_LABELS: Record<string, string> = {
@@ -83,7 +89,7 @@ function fmt(n: number) { return `$${(n ?? 0).toFixed(2)}`; }
 function pct(n: number) { return `${(n ?? 0).toFixed(2)}%`; }
 
 export default function PlanillaClient({
-  planillasInit, barberosInit, configInit, hasConfig,
+  planillasInit, barberosInit, configInit, hasConfig, negocio,
 }: Props) {
   const [planillas, setPlanillas]   = useState<Planilla[]>(planillasInit);
   const [barberos]                  = useState<BarberoResumen[]>(barberosInit);
@@ -103,8 +109,9 @@ export default function PlanillaClient({
   const [quincena25,  setQuincena25]  = useState<{ items: PrestacionItem[]; total: number; anio: number; aplican: number; noAplican: number } | null>(null);
   const [loadingPrest, setLoadingPrest] = useState(false);
   const [anioAguinaldo, setAnioAguinaldo]  = useState(new Date().getFullYear());
-  const [anioQuincena,  setAnioQuincena]   = useState(2027);
+  const [anioQuincena,  setAnioQuincena]   = useState(new Date().getFullYear());
   const [completo, setCompleto]            = useState(false);
+  const [printingId, setPrintingId]        = useState<number | null>(null);
 
   // Form generación
   const [periodo, setPeriodo]   = useState<string>('');
@@ -205,6 +212,35 @@ export default function PlanillaClient({
     });
   };
 
+  const handlePagar = (id: number) => {
+    Modal.confirm({
+      title: '¿Marcar planilla como Pagada?',
+      content: 'Confirma que se realizaron todos los pagos a los empleados. Esta acción no se puede revertir.',
+      okText: 'Confirmar Pago', cancelText: 'Cancelar', okType: 'primary',
+      okButtonProps: { style: { background: '#0d9488', borderColor: '#0d9488' } },
+      onOk: async () => {
+        const r = await fetch(`/api/planilla/${id}/pagar`, { method: 'PATCH' });
+        const d = await r.json();
+        if (r.ok) { toast.success('Planilla marcada como Pagada'); await reload(); }
+        else toast.error(d.error || 'Error al marcar como pagada');
+      },
+    });
+  };
+
+  const handleImprimir = async (r: Planilla) => {
+    setPrintingId(r.id);
+    try {
+      // Si el drawer tiene el detalle completo de esta planilla, úsalo
+      const cached = drawerDetalle?.id === r.id && (drawerDetalle.detalles as DetallePlanilla[]).some(d => d.nombre);
+      let data: Planilla | null = cached ? drawerDetalle : null;
+      if (!data) {
+        const res = await fetch(`/api/planilla/${r.id}`);
+        if (res.ok) data = await res.json();
+      }
+      if (data) abrirPlanillaPDF(data as unknown as PlanillaViewerData, negocio);
+    } finally { setPrintingId(null); }
+  };
+
   // ── Config barbero ─────────────────────────────────
   const handleSaveConfigBarbero = async () => {
     if (!modalConfig) return;
@@ -265,6 +301,13 @@ export default function PlanillaClient({
               finally { setDrawerLoading(false); }
             }} />
           </Tooltip>
+          <Tooltip title="Imprimir / PDF">
+            <Button
+              size="small" icon={<PrinterOutlined />}
+              loading={printingId === r.id}
+              onClick={() => handleImprimir(r)}
+            />
+          </Tooltip>
           {r.estado === 'BORRADOR' && (<>
             <Tooltip title="Aprobar">
               <Button size="small" icon={<CheckCircleOutlined />} type="primary" onClick={() => handleAprobar(r.id)} />
@@ -273,6 +316,15 @@ export default function PlanillaClient({
               <Button size="small" icon={<DeleteOutlined />} danger onClick={() => handleEliminar(r.id)} />
             </Tooltip>
           </>)}
+          {r.estado === 'APROBADA' && (
+            <Tooltip title="Marcar como Pagada">
+              <Button
+                size="small" icon={<DollarCircleOutlined />} type="primary"
+                style={{ background: '#059669', borderColor: '#059669' }}
+                onClick={() => handlePagar(r.id)}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -890,7 +942,20 @@ export default function PlanillaClient({
       <Drawer open={!!drawerDetalle} onClose={() => setDrawerDetalle(null)}
         title={<span>Planilla — Período: <Text strong>{drawerDetalle?.periodo}</Text></span>}
         width="90%"
-        extra={<Tag color={ESTADO_COLOR[drawerDetalle?.estado || 'BORRADOR']}>{drawerDetalle?.estado}</Tag>}>
+        extra={
+          <Space>
+            <Tag color={ESTADO_COLOR[drawerDetalle?.estado || 'BORRADOR']}>{drawerDetalle?.estado}</Tag>
+            <Tooltip title="Imprimir planilla completa (PDF)">
+              <Button
+                icon={<FilePdfOutlined />} size="small"
+                onClick={() => drawerDetalle && abrirPlanillaPDF(drawerDetalle as unknown as PlanillaViewerData, negocio)}
+                disabled={drawerLoading || !drawerDetalle}
+              >
+                Imprimir Planilla
+              </Button>
+            </Tooltip>
+          </Space>
+        }>
         {drawerDetalle && (
           <>
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
@@ -912,9 +977,29 @@ export default function PlanillaClient({
               ))}
             </Row>
             <Divider>Detalle por Barbero</Divider>
-            <Table dataSource={drawerDetalle.detalles as DetallePlanilla[]}
-              columns={colsDetalle} rowKey="id" size="small"
-              scroll={{ x: true }} pagination={false} loading={drawerLoading} />
+            <Table
+              dataSource={drawerDetalle.detalles as DetallePlanilla[]}
+              columns={[
+                ...colsDetalle,
+                {
+                  title: 'Comprobante',
+                  render: (d: DetallePlanilla) => (
+                    <Tooltip title="Imprimir comprobante de pago individual">
+                      <Button
+                        size="small" icon={<PrinterOutlined />}
+                        onClick={() => abrirComprobanteBarbero(
+                          drawerDetalle as unknown as PlanillaViewerData,
+                          d,
+                          negocio,
+                        )}
+                      />
+                    </Tooltip>
+                  ),
+                },
+              ]}
+              rowKey="id" size="small"
+              scroll={{ x: true }} pagination={false} loading={drawerLoading}
+            />
           </>
         )}
       </Drawer>
