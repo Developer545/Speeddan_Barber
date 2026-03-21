@@ -139,14 +139,14 @@ export default function LoginPage() {
     fontFamily: 'var(--font-sans)',
   };
 
-  /* ── Glass card helper ── */
+  /* ── Glass card helper — más pronunciado con imagen real de fondo ── */
   const glassCard = (style: React.CSSProperties = {}): React.CSSProperties => ({
-    background: 'rgba(255,255,255,0.10)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    border: '1px solid rgba(255,255,255,0.20)',
+    background: 'rgba(255,255,255,0.13)',
+    backdropFilter: 'blur(20px) saturate(1.4)',
+    WebkitBackdropFilter: 'blur(20px) saturate(1.4)',
+    border: '1px solid rgba(255,255,255,0.26)',
     borderRadius: 16,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.20)',
     ...style,
   });
 
@@ -162,7 +162,7 @@ export default function LoginPage() {
           display: 'none',
           width: '48%',
           flexShrink: 0,
-          background: 'var(--gradient-hero)',
+          background: 'hsl(175 84% 25%)',   /* fallback si la imagen tarda */
           position: 'relative',
           overflow: 'hidden',
           alignItems: 'center',
@@ -171,55 +171,74 @@ export default function LoginPage() {
           padding: '60px 48px',
         }}
       >
-        {/* ── Capa de patrón diagonal ── */}
+        {/* ── CAPA 1: Imagen de fondo — barbershop interior, blureada ── */}
         <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
+          position: 'absolute',
+          inset: '-20px',           /* extiende para ocultar bordes del blur */
+          backgroundImage: 'url("https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1400&q=80")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          filter: 'blur(5px) brightness(0.38) saturate(1.3)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }} />
+
+        {/* ── CAPA 2: Overlay teal — efecto cristal/vidrio esmerilado ── */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
+          background: 'linear-gradient(145deg, rgba(13,148,136,0.60) 0%, rgba(5,150,105,0.52) 50%, rgba(15,118,110,0.68) 100%)',
+        }} />
+
+        {/* ── CAPA 3: Patrón de líneas diagonales — textura sutil ── */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none',
           backgroundImage: `
             repeating-linear-gradient(
               45deg,
-              rgba(255,255,255,0.025) 0px,
-              rgba(255,255,255,0.025) 1px,
+              rgba(255,255,255,0.030) 0px,
+              rgba(255,255,255,0.030) 1px,
               transparent 1px,
-              transparent 48px
+              transparent 52px
             ),
             repeating-linear-gradient(
               -45deg,
-              rgba(255,255,255,0.02) 0px,
-              rgba(255,255,255,0.02) 1px,
+              rgba(255,255,255,0.018) 0px,
+              rgba(255,255,255,0.018) 1px,
               transparent 1px,
-              transparent 48px
+              transparent 52px
             )
           `,
         }} />
 
-        {/* ── Orbe brillante superior ── */}
+        {/* ── CAPA 4: Orbe superior pulsante ── */}
         <div className="orb-top" style={{
-          position: 'absolute', top: -120, right: -80,
-          width: 380, height: 380, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)',
+          position: 'absolute', top: -120, right: -80, zIndex: 3,
+          width: 400, height: 400, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
-        {/* ── Orbe inferior ── */}
+        {/* ── CAPA 4b: Orbe inferior ── */}
         <div style={{
-          position: 'absolute', bottom: -80, left: -60,
-          width: 280, height: 280, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
+          position: 'absolute', bottom: -80, left: -60, zIndex: 3,
+          width: 300, height: 300, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
-        {/* ══ CONTENIDO CENTRAL ══ */}
-        <div style={{ position: 'relative', zIndex: 2, width: '100%', maxWidth: 420 }}>
+        {/* ══ CONTENIDO CENTRAL — encima de todas las capas ══ */}
+        <div style={{ position: 'relative', zIndex: 5, width: '100%', maxWidth: 420 }}>
 
           {/* Logo principal */}
           <div className="anim-fade-up" style={{ textAlign: 'center', marginBottom: 40 }}>
-            {/* Ícono scissors premium */}
+            {/* Ícono scissors premium — más visible con imagen de fondo */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               width: 72, height: 72, borderRadius: 20, marginBottom: 20,
-              background: 'rgba(255,255,255,0.12)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.25)',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(24px) saturate(1.6)',
+              WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
+              border: '1px solid rgba(255,255,255,0.32)',
+              boxShadow: '0 12px 40px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.30)',
             }}>
               <ScissorsIcon size={34} color="white" strokeWidth={1.5} />
             </div>
