@@ -61,7 +61,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/gastos',         label: 'Gastos',          icon: Receipt,        roles: ['OWNER'] },
   { href: '/cxp',            label: 'Cuentas x Pagar', icon: ClockCountdown, roles: ['OWNER'] },
   { href: '/planilla',       label: 'Planilla',        icon: Money,          roles: ['OWNER'] },
-  { href: '/reviews',        label: 'Reseñas',         icon: Star,           roles: ['OWNER', 'BARBER'] },
+  // { href: '/reviews',     label: 'Reseñas',         icon: Star,           roles: ['OWNER', 'BARBER'] }, // módulo pendiente
   { href: '/settings',       label: 'Configuración',   icon: Gear,           roles: ['OWNER'] },
 ];
 
