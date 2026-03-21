@@ -80,21 +80,90 @@ export async function cancelAppointment(id: number, tenantId: number, reason?: s
   return serializeAppointment(updated);
 }
 
+// ── Stats POS — ventas últimos 7 días ────────────────────────────────────────
+const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+async function getVentasPosSemana(tenantId: number) {
+  const results = [];
+  for (let i = 6; i >= 0; i--) {
+    const d     = new Date();
+    d.setDate(d.getDate() - i);
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const end   = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+    const agg   = await prisma.barberVenta.aggregate({
+      where: { tenantId, estado: 'ACTIVA', createdAt: { gte: start, lt: end } },
+      _sum:   { total: true },
+      _count: { id: true },
+    });
+    results.push({
+      day:   DAY_LABELS[d.getDay()],
+      total: parseFloat((agg._sum.total?.toNumber() ?? 0).toFixed(2)),
+      count: agg._count.id,
+    });
+  }
+  return results;
+}
+
 export async function getStats(tenantId: number) {
-  const now = new Date();
+  const now      = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const since30    = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const since7     = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000);
 
-  const [citasHoy, citasPendientes, ingresosHoy, clientesActivos, citasSemana] = await Promise.all([
+  const [
+    citasHoy, citasPendientes, ingresosAppt, clientesActivos, citasSemana,
+    ventasPosHoy, ingresosPosHoyAgg, ventasSemana, ventasMesAgg, clientesPosAgg,
+  ] = await Promise.all([
     repo.countTodayAppointments(tenantId, todayStart, todayEnd),
     repo.countPendingAppointments(tenantId),
     repo.sumPaymentsToday(tenantId, todayStart, todayEnd),
     repo.countActiveClientsLast30Days(tenantId, since30),
     repo.countAppointmentsLast7Days(tenantId),
+    // POS: ventas de hoy
+    prisma.barberVenta.count({
+      where: { tenantId, estado: 'ACTIVA', createdAt: { gte: todayStart, lt: todayEnd } },
+    }),
+    prisma.barberVenta.aggregate({
+      where: { tenantId, estado: 'ACTIVA', createdAt: { gte: todayStart, lt: todayEnd } },
+      _sum: { total: true },
+    }),
+    // POS: últimos 7 días (para gráfica)
+    getVentasPosSemana(tenantId),
+    // POS: últimos 30 días (para ticket promedio)
+    prisma.barberVenta.aggregate({
+      where: { tenantId, estado: 'ACTIVA', createdAt: { gte: since7 } },
+      _sum:   { total: true },
+      _count: { id: true },
+    }),
+    // POS: clientes únicos últimos 30 días
+    prisma.barberVenta.findMany({
+      where:  { tenantId, estado: 'ACTIVA', createdAt: { gte: since30 }, clienteId: { not: null } },
+      select: { clienteId: true },
+      distinct: ['clienteId'],
+    }),
   ]);
 
-  return { citasHoy, citasPendientes, ingresosHoy, clientesActivos, citasSemana };
+  const ingresosPosHoy = ingresosPosHoyAgg._sum.total?.toNumber() ?? 0;
+  const ingresosHoy    = parseFloat((ingresosAppt + ingresosPosHoy).toFixed(2));
+  const ventasSemanaTotal = ventasMesAgg._sum.total?.toNumber() ?? 0;
+  const ventasSemanaCount = ventasMesAgg._count.id;
+  const ticketPromedio = ventasSemanaCount > 0
+    ? parseFloat((ventasSemanaTotal / ventasSemanaCount).toFixed(2))
+    : 0;
+
+  return {
+    citasHoy,
+    citasPendientes,
+    ingresosHoy,
+    clientesActivos: Math.max(clientesActivos, clientesPosAgg.length),
+    citasSemana,
+    // POS
+    ventasPosHoy,
+    ingresosPosHoy: parseFloat(ingresosPosHoy.toFixed(2)),
+    ventasSemana,
+    ticketPromedio,
+  };
 }
 
 // ── Serializer ────────────────────────────────────────
