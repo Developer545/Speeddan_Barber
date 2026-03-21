@@ -26,6 +26,7 @@ import {
   ShoppingCart,
   Receipt,
   ClockCountdown,
+  Money,
   ArrowLineLeft,
   ArrowLineRight,
   SignOut,
@@ -50,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/inventario',   label: 'Inventario',     icon: Package,        roles: ['OWNER'] },
   { href: '/gastos',       label: 'Gastos',         icon: Receipt,        roles: ['OWNER'] },
   { href: '/cxp',          label: 'Cuentas x Pagar',icon: ClockCountdown, roles: ['OWNER'] },
+  { href: '/planilla',     label: 'Planilla',        icon: Money,          roles: ['OWNER'] },
   { href: '/reviews',      label: 'Reseñas',        icon: Star,           roles: ['OWNER', 'BARBER'] },
   { href: '/settings',     label: 'Configuración',  icon: Gear,         roles: ['OWNER'] },
 ];

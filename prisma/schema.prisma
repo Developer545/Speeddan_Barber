@@ -102,6 +102,10 @@ model BarberTenant {
   categoriaGastos    BarberCategoriaGasto[]
   gastos             BarberGasto[]
 
+  // Módulo planilla
+  configPlanilla BarberConfigPlanilla[] @relation("ConfigPlanillaTenant")
+  planillas      BarberPlanilla[]       @relation("PlanillaTenant")
+
   @@map("barber_tenants")
 }
 
@@ -169,9 +173,10 @@ model Barber {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  schedules    BarberSchedule[]
-  appointments BarberAppointment[]
-  reviews      BarberReview[]
+  schedules      BarberSchedule[]
+  appointments   BarberAppointment[]
+  reviews        BarberReview[]
+  configPlanilla BarberConfigBarbero?
 
   @@map("barbers")
 }
@@ -480,4 +485,87 @@ model BarberGasto {
 
   @@index([tenantId])
   @@map("barber_gastos")
+}
+
+// ══════════════════════════════════════════════════════
+// MÓDULO PLANILLA
+// ══════════════════════════════════════════════════════
+
+model BarberConfigPlanilla {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int
+  tenant      BarberTenant @relation("ConfigPlanillaTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  clave       String
+  valor       Decimal      @db.Decimal(10, 4)
+  descripcion String?
+  topeMaximo  Decimal?     @db.Decimal(10, 2)
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([tenantId, clave])
+  @@index([tenantId])
+  @@map("barber_config_planilla")
+}
+
+model BarberConfigBarbero {
+  id                 Int     @id @default(autoincrement())
+  tenantId           Int
+  barberoId          Int     @unique
+  barbero            Barber  @relation(fields: [barberoId], references: [id], onDelete: Cascade)
+  tipoPago           String  @default("FIJO")  // FIJO | POR_DIA | POR_SEMANA | POR_HORA | POR_SERVICIO
+  salarioBase        Decimal @default(0) @db.Decimal(10, 2)
+  valorPorUnidad     Decimal @default(0) @db.Decimal(10, 2)
+  porcentajeServicio Decimal @default(0) @db.Decimal(5, 2)
+  aplicaRenta        Boolean @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([tenantId])
+  @@map("barber_config_barbero")
+}
+
+model BarberPlanilla {
+  id               Int                    @id @default(autoincrement())
+  tenantId         Int
+  tenant           BarberTenant           @relation("PlanillaTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  periodo          String                 // YYYY-MM
+  estado           String                 @default("BORRADOR")  // BORRADOR | APROBADA | PAGADA
+  totalBruto       Decimal                @default(0) @db.Decimal(10, 2)
+  totalISS         Decimal                @default(0) @db.Decimal(10, 2)
+  totalAFP         Decimal                @default(0) @db.Decimal(10, 2)
+  totalRenta       Decimal                @default(0) @db.Decimal(10, 2)
+  totalDeducciones Decimal                @default(0) @db.Decimal(10, 2)
+  totalNeto        Decimal                @default(0) @db.Decimal(10, 2)
+  totalPatronalISS Decimal                @default(0) @db.Decimal(10, 2)
+  totalPatronalAFP Decimal                @default(0) @db.Decimal(10, 2)
+  totalINSAFORP    Decimal                @default(0) @db.Decimal(10, 2)
+  notas            String?
+  detalles         BarberDetallePlanilla[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@unique([tenantId, periodo])
+  @@index([tenantId])
+  @@map("barber_planillas")
+}
+
+model BarberDetallePlanilla {
+  id               Int            @id @default(autoincrement())
+  planillaId       Int
+  planilla         BarberPlanilla @relation(fields: [planillaId], references: [id], onDelete: Cascade)
+  barberoId        Int
+  nombre           String
+  tipoPago         String
+  unidades         Decimal        @default(0) @db.Decimal(10, 2)
+  salarioBruto     Decimal        @db.Decimal(10, 2)
+  isss             Decimal        @default(0) @db.Decimal(10, 2)
+  afp              Decimal        @default(0) @db.Decimal(10, 2)
+  renta            Decimal        @default(0) @db.Decimal(10, 2)
+  otrasDeducciones Decimal        @default(0) @db.Decimal(10, 2)
+  totalDeducciones Decimal        @default(0) @db.Decimal(10, 2)
+  salarioNeto      Decimal        @default(0) @db.Decimal(10, 2)
+  isssPatronal     Decimal        @default(0) @db.Decimal(10, 2)
+  afpPatronal      Decimal        @default(0) @db.Decimal(10, 2)
+  insaforp         Decimal        @default(0) @db.Decimal(10, 2)
+
+  @@map("barber_detalles_planilla")
 }
