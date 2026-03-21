@@ -7,9 +7,10 @@ import {
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, FileTextOutlined, CheckCircleOutlined,
-  ReloadOutlined, ScissorOutlined, UserOutlined
+  ReloadOutlined, PrinterOutlined, FileDoneOutlined
 } from '@ant-design/icons'
 import { toast } from 'sonner'
+import { abrirFacturaCompleta, abrirTicket, type DTEJsonViewer } from '@/lib/dte-viewer'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ export default function PosClient({
   const [clienteDocumento, setClienteDocumento] = useState('')
   const [clienteNrc, setClienteNrc] = useState('')
   const [loadingCobrar, setLoadingCobrar] = useState(false)
-  const [modalExito, setModalExito] = useState<{ numero: number; total: number; codigoGen: string } | null>(null)
+  const [modalExito, setModalExito] = useState<{ numero: number; total: number; codigoGen: string; dte: DTEJsonViewer | null } | null>(null)
   const [barberoActivo, setBarberoActivo] = useState<{ id: number; nombre: string } | null>(null)
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos')
 
@@ -260,7 +261,7 @@ export default function PosClient({
 
       if (!res.ok) throw new Error(data.error || 'Error al cobrar')
 
-      setModalExito({ numero: data.venta.numero, total: data.venta.total, codigoGen: data.venta.codigoGeneracion })
+      setModalExito({ numero: data.venta.numero, total: data.venta.total, codigoGen: data.venta.codigoGeneracion, dte: data.dte || null })
       setLineas([])
       setPagos([{ key: '1', metodo: 'CASH', monto: 0 }])
       setConFactura(false)
@@ -915,24 +916,42 @@ export default function PosClient({
         centered
       >
         {modalExito && (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 48 }}>✅</div>
-            <h2 style={{ color: '#0d9488', margin: '12px 0 4px' }}>Cobro registrado</h2>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#111' }}>{fmt(modalExito.total)}</div>
-            <div style={{ color: '#888', margin: '8px 0 4px', fontSize: 12 }}>Venta #{modalExito.numero}</div>
-            <div style={{ color: '#bbb', fontSize: 10, marginBottom: 16 }}>{modalExito.codigoGen}</div>
-            <Space>
-              <Button onClick={() => setModalExito(null)} type="primary"
-                style={{ background: '#0d9488', borderColor: '#0d9488' }}>
-                Nueva venta
-              </Button>
-              <Button onClick={() => {
-                window.open(`/pos-documentos?uuid=${modalExito.codigoGen}`, '_blank')
-                setModalExito(null)
-              }}>
-                Ver documento
-              </Button>
-            </Space>
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: 44 }}>✅</div>
+            <h2 style={{ color: '#0d9488', margin: '10px 0 4px' }}>¡Cobro registrado!</h2>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#111' }}>{fmt(modalExito.total)}</div>
+            <div style={{ color: '#888', margin: '6px 0 2px', fontSize: 13 }}>Venta #{modalExito.numero}</div>
+            <div style={{ color: '#bbb', fontSize: 9, marginBottom: 16, fontFamily: 'monospace' }}>{modalExito.codigoGen}</div>
+
+            {/* Botones imprimir */}
+            {modalExito.dte && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>¿El cliente quiere factura?</div>
+                <Space>
+                  <Button
+                    icon={<FileDoneOutlined />}
+                    onClick={() => abrirFacturaCompleta(modalExito.dte!)}
+                    style={{ borderColor: '#0d9488', color: '#0d9488' }}
+                  >
+                    Ver Factura (A4)
+                  </Button>
+                  <Button
+                    icon={<PrinterOutlined />}
+                    onClick={() => abrirTicket(modalExito.dte!)}
+                  >
+                    Ver Ticket (80mm)
+                  </Button>
+                </Space>
+              </div>
+            )}
+
+            <Button
+              onClick={() => setModalExito(null)}
+              type="primary" size="large"
+              style={{ background: '#0d9488', borderColor: '#0d9488', minWidth: 160 }}
+            >
+              Nueva venta
+            </Button>
           </div>
         )}
       </Modal>

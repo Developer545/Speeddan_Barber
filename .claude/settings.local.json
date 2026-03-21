@@ -46,7 +46,8 @@
       "Bash(find C:ProjectosDevSpeeddansys/src/main/controllers -name *.ts)",
       "Bash(ls -la \"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\src\\\\app\\\\\\(dashboard\\)\")",
       "Bash(\"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\json_dte\\\\.gitkeep\")",
-      "Bash(\"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\.gitignore\")"
+      "Bash(\"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\.gitignore\")",
+      "Bash(npx tsx:*)"
     ]
   }
 }

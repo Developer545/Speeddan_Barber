@@ -662,6 +662,8 @@ model BarberVenta {
   estado           BarberVentaEstado @default(ACTIVA)
   simulada         Boolean           @default(true)
   motivoAnulacion  String?
+  // DTE JSON completo (guardado en BD para visualización sin filesystem)
+  dteJson          Json?
   // Futuro MH
   selloRecepcion   String?
   mhEstado         String?

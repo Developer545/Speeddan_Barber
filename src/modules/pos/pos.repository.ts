@@ -188,6 +188,7 @@ export async function createVenta(
     total: number
     appointmentId?: number
     simulada: boolean
+    dteJson?: object
     detalles: Array<{
       numItem: number
       barberoId: number
@@ -229,6 +230,7 @@ export async function createVenta(
       total: data.total,
       appointmentId: data.appointmentId,
       simulada: data.simulada,
+      dteJson: data.dteJson as Prisma.InputJsonValue ?? Prisma.JsonNull,
       detalles: {
         create: data.detalles.map(d => ({
           numItem: d.numItem,

@@ -5,8 +5,9 @@ import {
   Card, Table, Tag, Button, Tabs, Modal, Input, Row, Col, Statistic,
   Descriptions, Tooltip, Space, Select
 } from 'antd'
-import { FileTextOutlined, StopOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { FileTextOutlined, StopOutlined, PrinterOutlined, FileDoneOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { toast } from 'sonner'
+import { abrirFacturaCompleta, abrirTicket, type DTEJsonViewer } from '@/lib/dte-viewer'
 
 interface Venta {
   id: number
@@ -87,6 +88,25 @@ export default function PosDocumentosClient({
       toast.error(e.message)
     } finally {
       setLoadingAnular(false)
+    }
+  }
+
+  // ── Visor DTE ────────────────────────────────────────────────────────────────
+  const [loadingDte, setLoadingDte] = useState<number | null>(null)
+
+  const verDTE = async (ventaId: number, formato: 'factura' | 'ticket') => {
+    setLoadingDte(ventaId)
+    try {
+      const res = await fetch(`/api/pos/venta/${ventaId}/dte`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'No se pudo obtener el DTE')
+      const dte = data.dte as DTEJsonViewer
+      if (formato === 'factura') abrirFacturaCompleta(dte)
+      else abrirTicket(dte)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setLoadingDte(null)
     }
   }
 
@@ -194,17 +214,41 @@ export default function PosDocumentosClient({
     },
     {
       title: 'Acciones',
-      width: 120,
-      render: (_: unknown, rec: Venta) => rec.estado === 'ACTIVA' ? (
-        <Space>
-          <Tooltip title="Nota de Crédito">
-            <Button size="small" icon={<FileTextOutlined />} onClick={() => setNcModal(rec)} />
+      width: 190,
+      render: (_: unknown, rec: Venta) => (
+        <Space size={4}>
+          <Tooltip title="Ver factura (formato carta A4)">
+            <Button
+              size="small"
+              icon={<FileDoneOutlined />}
+              loading={loadingDte === rec.id}
+              onClick={() => verDTE(rec.id, 'factura')}
+            >
+              Factura
+            </Button>
           </Tooltip>
-          <Tooltip title="Anular">
-            <Button size="small" danger icon={<StopOutlined />} onClick={() => setAnularModal(rec)} />
+          <Tooltip title="Ver ticket (formato 80mm)">
+            <Button
+              size="small"
+              icon={<PrinterOutlined />}
+              loading={loadingDte === rec.id}
+              onClick={() => verDTE(rec.id, 'ticket')}
+            >
+              Ticket
+            </Button>
           </Tooltip>
+          {rec.estado === 'ACTIVA' && (
+            <>
+              <Tooltip title="Nota de Crédito">
+                <Button size="small" icon={<FileTextOutlined />} onClick={() => setNcModal(rec)} />
+              </Tooltip>
+              <Tooltip title="Anular venta">
+                <Button size="small" danger icon={<StopOutlined />} onClick={() => setAnularModal(rec)} />
+              </Tooltip>
+            </>
+          )}
         </Space>
-      ) : null,
+      ),
     },
   ]
 

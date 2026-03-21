@@ -187,8 +187,7 @@ export async function createVenta(tenantId: number, input: CreateVentaInput) {
     simulada: true,
   })
 
-  // Guardar JSON en disco
-  saveDTEJson(dte)
+  // DTE JSON se guarda en la base de datos (no en disco — incompatible con Vercel serverless)
 
   // Calcular totales para BD
   let subtotal = 0, totalGravado = 0, totalExento = 0, totalIva = 0, totalDescuento = 0
@@ -233,6 +232,7 @@ export async function createVenta(tenantId: number, input: CreateVentaInput) {
     total: parseFloat(total.toFixed(2)),
     appointmentId: input.appointmentId,
     simulada: true,
+    dteJson: dte as object,
     detalles: detallesBD,
     pagos: input.pagos,
   })
@@ -319,8 +319,6 @@ export async function createNotaCredito(tenantId: number, ventaId: number, motiv
       fecEmi: venta.createdAt.toISOString().slice(0, 10),
     },
   })
-
-  saveDTEJson(dte)
 
   return repo.createNotaCredito({
     tenantId,
