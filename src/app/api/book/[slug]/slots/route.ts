@@ -91,34 +91,40 @@ export async function GET(
     },
   });
 
-  // For each candidate slot, check availability
-  const available: string[] = [];
+  // Para cada slot candidato, determinar si está disponible u ocupado
+  // Devolvemos TODOS los slots con su estado para mostrar visualización completa
+  const now = new Date();
+  const slots: Array<{ time: string; available: boolean }> = [];
+
   for (const slotTime of candidates) {
     const [sh, sm] = slotTime.split(':').map(Number);
     const slotStart = new Date(y, mo - 1, d, sh, sm, 0);
     const slotEnd   = new Date(slotStart.getTime() + duration * 60_000);
 
-    // Check if at least one barber is free at this slot
+    // Slots pasados no disponibles
+    if (slotStart <= now) {
+      slots.push({ time: slotTime, available: false });
+      continue;
+    }
+
+    // Verificar si algún barbero está libre en este slot
     const someBarberFree = barbers.some(barber => {
-      // Barber must work this day of week
       if (!barber.schedules.length) return false;
       const schedule = barber.schedules[0];
 
-      // Slot must be within barber's working hours
       const barberOpen  = timeToMinutes(schedule.startTime);
       const barberClose = timeToMinutes(schedule.endTime);
       const slotMin     = sh * 60 + sm;
       if (slotMin < barberOpen || slotMin + duration > barberClose) return false;
 
-      // No overlapping appointment
-      const hasConflict = barber.appointments.some(appt => {
-        return appt.startTime < slotEnd && appt.endTime > slotStart;
-      });
+      const hasConflict = barber.appointments.some(appt =>
+        appt.startTime < slotEnd && appt.endTime > slotStart
+      );
       return !hasConflict;
     });
 
-    if (someBarberFree) available.push(slotTime);
+    slots.push({ time: slotTime, available: someBarberFree });
   }
 
-  return NextResponse.json({ slots: available, isOpen: true });
+  return NextResponse.json({ slots, isOpen: true });
 }

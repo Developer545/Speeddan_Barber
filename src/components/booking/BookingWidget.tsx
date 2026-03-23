@@ -166,7 +166,7 @@ export default function BookingWidget({ tenant, services, barbers }: Props) {
   const [barber, setBarber]           = useState<Barber | null | 'any'>('any');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [slots, setSlots]             = useState<string[]>([]);
+  const [slots, setSlots]             = useState<Array<{ time: string; available: boolean }>>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [submitting, setSubmitting]   = useState(false);
   const [confirmed, setConfirmed]     = useState<{
@@ -189,7 +189,7 @@ export default function BookingWidget({ tenant, services, barbers }: Props) {
       });
       if (barber && barber !== 'any') params.set('barberId', String(barber.id));
       const res  = await fetch(`/api/book/${tenant.slug}/slots?${params}`);
-      const data = await res.json() as { slots: string[]; isOpen: boolean; reason?: string };
+      const data = await res.json() as { slots: Array<{ time: string; available: boolean }>; isOpen: boolean; reason?: string };
       if (!data.isOpen) {
         msgApi.warning(data.reason ? `Día no disponible: ${data.reason}` : 'La barbería no atiende ese día');
         setSlots([]);
@@ -339,7 +339,7 @@ export default function BookingWidget({ tenant, services, barbers }: Props) {
   const canNext = [
     !!service,
     barber !== undefined,
-    !!selectedDate && !!selectedTime,
+    !!selectedDate && !!selectedTime && slots.some(s => s.time === selectedTime && s.available),
     true,
   ][step] ?? false;
 
@@ -502,34 +502,62 @@ export default function BookingWidget({ tenant, services, barbers }: Props) {
                     <div style={{ color: C.textSub, fontSize: 12 }}>Prueba con otra fecha</div>
                   </div>
                 ) : (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-                    gap: 10,
-                  }}>
-                    {slots.map(slot => {
-                      const isSelected = slot === selectedTime;
-                      return (
-                        <button
-                          key={slot}
-                          onClick={() => setSelectedTime(slot)}
-                          style={{
-                            padding:    '12px 8px',
-                            background: isSelected ? C.teal : '#fff',
-                            color:      isSelected ? '#fff' : C.text,
-                            border:     `2px solid ${isSelected ? C.teal : C.border}`,
-                            borderRadius: 0,
-                            cursor:     'pointer',
-                            fontWeight: 700,
-                            fontSize:   14,
-                            transition: 'all .15s',
-                          }}
-                        >
-                          {formatTime(slot)}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <>
+                    {/* Leyenda */}
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textSub }}>
+                        <span style={{ width: 14, height: 14, background: C.teal, display: 'inline-block' }} />
+                        Disponible
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textSub }}>
+                        <span style={{ width: 14, height: 14, background: '#f0f0f0', border: '1px solid #d9d9d9', display: 'inline-block' }} />
+                        Ocupado
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+                      gap: 10,
+                    }}>
+                      {slots.map(slot => {
+                        const isSelected  = slot.time === selectedTime;
+                        const isAvailable = slot.available;
+                        return (
+                          <button
+                            key={slot.time}
+                            onClick={() => isAvailable && setSelectedTime(slot.time)}
+                            disabled={!isAvailable}
+                            title={!isAvailable ? 'Horario ocupado' : undefined}
+                            style={{
+                              padding:      '12px 8px',
+                              background:   isSelected ? C.teal : isAvailable ? '#fff' : '#f5f5f5',
+                              color:        isSelected ? '#fff' : isAvailable ? C.text : '#bfbfbf',
+                              border:       `2px solid ${isSelected ? C.teal : isAvailable ? C.border : '#e8e8e8'}`,
+                              borderRadius: 0,
+                              cursor:       isAvailable ? 'pointer' : 'not-allowed',
+                              fontWeight:   700,
+                              fontSize:     14,
+                              transition:   'all .15s',
+                              position:     'relative',
+                              textDecoration: !isAvailable ? 'line-through' : 'none',
+                              opacity:      isAvailable ? 1 : 0.6,
+                            }}
+                          >
+                            {formatTime(slot.time)}
+                            {!isAvailable && (
+                              <div style={{
+                                position: 'absolute', bottom: 3, left: 0, right: 0,
+                                fontSize: 9, color: '#bfbfbf', letterSpacing: 0.5,
+                                textDecoration: 'none',
+                              }}>
+                                OCUPADO
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             )}
