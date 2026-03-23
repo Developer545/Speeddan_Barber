@@ -111,6 +111,7 @@ model BarberTenant {
   ventas        BarberVenta[]
   notasCredito  BarberNotaCredito[]
   correlativos  BarberCorrelativo[]
+  dayOverrides  BarberDayOverride[]
 
   @@map("barber_tenants")
 }
@@ -745,4 +746,25 @@ model BarberCorrelativo {
   @@unique([tenantId, tipoDte, anioFiscal])
   @@index([tenantId])
   @@map("barber_correlativos")
+}
+
+// ══════════════════════════════════════════════════════
+// MÓDULO BOOKING PÚBLICO — excepciones de horario
+// ══════════════════════════════════════════════════════
+
+model BarberDayOverride {
+  id        Int          @id @default(autoincrement())
+  tenantId  Int
+  tenant    BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  date      DateTime     @db.Date
+  isOpen    Boolean      @default(false)
+  openTime  String?      // "07:00" si difiere del default
+  closeTime String?      // "12:00" si difiere del default
+  reason    String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([tenantId, date])
+  @@index([tenantId])
+  @@map("barber_day_overrides")
 }
