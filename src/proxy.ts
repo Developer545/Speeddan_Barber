@@ -8,7 +8,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/refresh', '/api/tenant/verify'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/tenant/verify',
+  '/book',        // ← página pública de reservas (sin login)
+  '/api/book',    // ← API pública de reservas (sin login)
+];
 
 function getSecret(): Uint8Array {
   return new TextEncoder().encode(process.env.JWT_SECRET ?? 'fallback-secret');
