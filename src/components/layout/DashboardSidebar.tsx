@@ -33,7 +33,10 @@ import {
   CashRegister,
   ClockClockwise,
   FileText,
+  PaintBrush,
 } from '@phosphor-icons/react';
+import ThemeSelector from '@/components/shared/ThemeSelector';
+import { useBarberTheme } from '@/context/ThemeContext';
 
 type NavItem = {
   href:  string;
@@ -72,14 +75,16 @@ function getInitials(name: string) {
 type Props = { role: BarberUserRole; slug: string; name: string };
 
 export default function DashboardSidebar({ role, slug, name }: Props) {
-  const pathname = usePathname();
-  const items    = NAV_ITEMS.filter(i => i.roles.includes(role));
-  const initials = getInitials(name || 'U');
+  const pathname   = usePathname();
+  const items      = NAV_ITEMS.filter(i => i.roles.includes(role));
+  const initials   = getInitials(name || 'U');
+  const { theme }  = useBarberTheme();
 
-  const [collapsed, setCollapsed] = useState(false);
-  const [mounted,   setMounted]   = useState(false);
-  const [isMobile,  setIsMobile]  = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed,       setCollapsed]       = useState(false);
+  const [mounted,         setMounted]         = useState(false);
+  const [isMobile,        setIsMobile]        = useState(false);
+  const [mobileOpen,      setMobileOpen]      = useState(false);
+  const [themeSelectorOpen, setThemeSelectorOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -207,6 +212,25 @@ export default function DashboardSidebar({ role, slug, name }: Props) {
         })}
       </nav>
 
+      {/* ── Botón Tema ───────────────────────────────────────────────────── */}
+      <button
+        type="button"
+        onClick={() => setThemeSelectorOpen(true)}
+        title="Cambiar tema visual"
+        className="sidebar-toggle-btn"
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: '100%', padding: '9px 0', background: 'transparent', border: 'none',
+          borderTop: '1px solid hsl(var(--sidebar-border))',
+          color: 'hsl(var(--sidebar-muted))', cursor: 'pointer',
+          gap: 6, fontSize: 11,
+          transition: 'color 0.15s, background 0.15s',
+        }}
+      >
+        <PaintBrush size={15} weight="bold" />
+        {!effectiveCollapsed && !isMobile && <span>Tema: {theme.emoji} {theme.name}</span>}
+      </button>
+
       {/* ── Toggle ───────────────────────────────────────────────────────── */}
       <button
         type="button"
@@ -227,6 +251,12 @@ export default function DashboardSidebar({ role, slug, name }: Props) {
           : <><ArrowLineLeft size={15} weight="bold" />{!isMobile && <span>Colapsar</span>}</>
         }
       </button>
+
+      {/* ── ThemeSelector Modal ───────────────────────────────────────────── */}
+      <ThemeSelector
+        open={themeSelectorOpen}
+        onClose={() => setThemeSelectorOpen(false)}
+      />
 
       {/* ── User Card ────────────────────────────────────────────────────── */}
       <div style={{
