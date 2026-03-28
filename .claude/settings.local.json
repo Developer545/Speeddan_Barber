@@ -48,7 +48,21 @@
       "Bash(\"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\json_dte\\\\.gitkeep\")",
       "Bash(\"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\.gitignore\")",
       "Bash(npx tsx:*)",
-      "Bash(ls src/app/\\\\\\(dashboard\\\\\\)/)"
+      "Bash(ls src/app/\\\\\\(dashboard\\\\\\)/)",
+      "Bash(find C:ProjectosDevSpeeddan_Barbería -type f -name *planilla* -o -name *payroll*)",
+      "Bash(find C:ProjectosDevSpeeddan_Barbería/src -type f \\\\\\(-path *planilla* -o -path *payroll* \\\\\\))",
+      "Bash(grep -n \"estado === ''BORRADOR''\" /c/ProjectosDev/Speeddan_Barbería/src/components/planilla/PlanillaClient.tsx)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\src\\\\app\\\\\\(dashboard\\)\\\\planilla\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\ProjectosDev\\\\Speeddan_Barbería\\\\src\\\\app\\\\api\\\\planilla\\\\[id]\\\\pagar\")",
+      "Bash(Write-Host \"dirs ok\")",
+      "Bash(gh pr:*)",
+      "Bash(where gh:*)",
+      "Bash(winget list:*)",
+      "WebFetch(domain:thememxpro.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
