@@ -13,7 +13,7 @@ import {
   Table, Card, Button, Row, Col,
   Statistic, Tag, Select, Modal, Input,
   Typography, Tooltip, Tabs, Drawer,
-  Descriptions, Space,
+  Descriptions, Space, theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -24,6 +24,7 @@ import {
   UserOutlined, ScissorOutlined,
 } from '@ant-design/icons';
 import { FormField } from '@/components/shared/FormField';
+import { useBarberTheme } from '@/context/ThemeContext';
 
 const { Title, Text } = Typography;
 
@@ -110,6 +111,29 @@ type Props = {
 };
 
 export default function BillingClient({ initialPayments, initialUnpaid, initialStats }: Props) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgMuted:       'hsl(var(--bg-muted))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    borderStrong:  'hsl(var(--border-strong))',
+    colorSuccess:  token.colorSuccess,
+    colorSuccessBg:token.colorSuccessBg,
+    colorError:    token.colorError,
+    colorErrorBg:  token.colorErrorBg,
+    colorWarning:  token.colorWarning,
+    colorWarningBg:token.colorWarningBg,
+  }
+
   const [payments,   setPayments]   = useState<Payment[]>(initialPayments);
   const [unpaid,     setUnpaid]     = useState<UnpaidAppointment[]>(initialUnpaid);
   const [stats,      setStats]      = useState<Stats>(initialStats);
@@ -284,7 +308,7 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
         <Space size={10}>
           <div style={{
             width: 34, height: 34, borderRadius: '50%',
-            background: '#0d9488', color: '#fff',
+            background: primary, color: C.bgSurface,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 700, flexShrink: 0,
           }}>
@@ -333,7 +357,7 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
       render: (_, r) => (
         <Text strong style={{
           fontVariantNumeric: 'tabular-nums',
-          color: r.status === 'REFUNDED' ? '#ff4d4f' : '#52c41a',
+          color: r.status === 'REFUNDED' ? C.colorError : C.colorSuccess,
           fontSize: 14,
         }}>
           {r.status === 'REFUNDED' ? '-' : ''}{formatMoney(r.amount)}
@@ -379,44 +403,44 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
       {/* ── KPIs fila 1: Ingresos ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #52c41a' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorSuccess}` }}>
             <Statistic
               title="Ingresos hoy"
               value={stats.ingresosHoy}
               precision={2}
-              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontSize: 20 }}
+              prefix={<DollarOutlined style={{ color: C.colorSuccess }} />}
+              valueStyle={{ color: C.colorSuccess, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #0d9488' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${primary}` }}>
             <Statistic
               title="Ingresos del mes"
               value={stats.ingresosMes}
               precision={2}
-              prefix={<CheckCircleOutlined style={{ color: '#0d9488' }} />}
-              valueStyle={{ color: '#0d9488', fontSize: 20 }}
+              prefix={<CheckCircleOutlined style={{ color: primary }} />}
+              valueStyle={{ color: primary, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #f59e0b' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorWarning}` }}>
             <Statistic
               title="Pendiente ($)"
               value={stats.pendienteSum}
               precision={2}
-              prefix={<WarningOutlined style={{ color: '#f59e0b' }} />}
-              valueStyle={{ color: '#f59e0b', fontSize: 20 }}
+              prefix={<WarningOutlined style={{ color: C.colorWarning }} />}
+              valueStyle={{ color: C.colorWarning, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #f59e0b' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorWarning}` }}>
             <Statistic
               title="Citas por cobrar"
               value={stats.pendienteCount}
-              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+              prefix={<ClockCircleOutlined style={{ color: C.colorWarning }} />}
               valueStyle={{ fontSize: 20 }}
             />
           </Card>
@@ -441,16 +465,16 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
                     {METHOD_ICONS[m]}
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, color: '#8c8c8c', lineHeight: '16px' }}>
+                    <div style={{ fontSize: 11, color: C.textMuted, lineHeight: '16px' }}>
                       {METHOD_LABELS[m]} — mes
                     </div>
                     <div style={{
                       fontWeight: 700, fontSize: 15,
-                      color: stat.count > 0 ? METHOD_COLORS[m] : '#d9d9d9',
+                      color: stat.count > 0 ? METHOD_COLORS[m] : C.border,
                     }}>
                       {formatMoney(stat.amount)}
                     </div>
-                    <div style={{ fontSize: 11, color: '#bfbfbf', lineHeight: '16px' }}>
+                    <div style={{ fontSize: 11, color: C.textDisabled, lineHeight: '16px' }}>
                       {stat.count} {stat.count === 1 ? 'pago' : 'pagos'}
                     </div>
                   </div>
@@ -513,7 +537,7 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
             <Text type="secondary" style={{ fontSize: 12 }}>
               Total filtrado:{' '}
             </Text>
-            <Text strong style={{ color: '#52c41a' }}>
+            <Text strong style={{ color: C.colorSuccess }}>
               {formatMoney(filtered.reduce((s, p) => s + p.amount, 0))}
             </Text>
           </div>
@@ -539,8 +563,8 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
           locale={{
             emptyText: (
               <div style={{ padding: 40, textAlign: 'center' }}>
-                <CalendarOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
-                <div style={{ marginTop: 8, color: '#8c8c8c' }}>Sin registros de pago</div>
+                <CalendarOutlined style={{ fontSize: 32, color: C.textDisabled }} />
+                <div style={{ marginTop: 8, color: C.textMuted }}>Sin registros de pago</div>
               </div>
             ),
           }}
@@ -577,15 +601,15 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 width: 64, height: 64, borderRadius: '50%',
                 background: selected.status === 'PAID'
-                  ? '#f6ffed'
+                  ? C.colorSuccessBg
                   : selected.status === 'PENDING'
-                  ? '#fffbe6'
-                  : '#fff1f0',
+                  ? C.colorWarningBg
+                  : C.colorErrorBg,
                 fontSize: 28, marginBottom: 10,
               }}>
                 {STATUS_ICONS[selected.status] ?? '💳'}
               </div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: selected.status === 'REFUNDED' ? '#ff4d4f' : '#52c41a', lineHeight: '32px' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: selected.status === 'REFUNDED' ? C.colorError : C.colorSuccess, lineHeight: '32px' }}>
                 {formatMoney(selected.amount)}
               </div>
               <div style={{ marginTop: 6 }}>
@@ -633,7 +657,7 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
         onCancel={() => setOpen(false)}
         title={
           <Space>
-            <DollarOutlined style={{ color: '#0d9488' }} />
+            <DollarOutlined style={{ color: primary }} />
             <span>Registrar pago</span>
           </Space>
         }
@@ -663,24 +687,24 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
           {selectedAppt && (
             <Card
               size="small"
-              style={{ background: '#f0fdfa', border: '1px solid #99f6e4' }}
+              style={{ background: C.bgPrimaryLow, border: `1px solid ${primary}30` }}
             >
               <Row gutter={[8, 6]}>
                 <Col span={12}>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>Cliente</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Cliente</div>
                   <div style={{ fontWeight: 500, fontSize: 13 }}>{selectedAppt.client.fullName}</div>
                 </Col>
                 <Col span={12}>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>Barbero</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Barbero</div>
                   <div style={{ fontWeight: 500, fontSize: 13 }}>{selectedAppt.barber.user.fullName}</div>
                 </Col>
                 <Col span={12}>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>Servicio</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Servicio</div>
                   <div style={{ fontWeight: 500, fontSize: 13 }}>{selectedAppt.service.name}</div>
                 </Col>
                 <Col span={12}>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>Precio sugerido</div>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0d9488' }}>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Precio sugerido</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: primary }}>
                     {formatMoney(selectedAppt.service.price)}
                   </div>
                 </Col>
@@ -728,7 +752,7 @@ export default function BillingClient({ initialPayments, initialUnpaid, initialS
           </FormField>
 
           {error && (
-            <p style={{ color: '#ff4d4f', fontSize: 13, margin: 0 }}>{error}</p>
+            <p style={{ color: C.colorError, fontSize: 13, margin: 0 }}>{error}</p>
           )}
         </div>
 

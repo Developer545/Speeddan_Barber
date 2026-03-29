@@ -29,6 +29,7 @@ import {
   DatePicker,
   Form,
   Spin,
+  theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -45,6 +46,7 @@ import {
   ToolOutlined,
 } from '@ant-design/icons';
 import { FormField } from '@/components/shared/FormField';
+import { useBarberTheme } from '@/context/ThemeContext';
 import dayjs from 'dayjs';
 
 const { Text, Title } = Typography;
@@ -213,6 +215,31 @@ type Props = {
 };
 
 export default function ComprasClient({ initialCompras, initialStats }: Props) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgMuted:       'hsl(var(--bg-muted))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    borderStrong:  'hsl(var(--border-strong))',
+    colorSuccess:  token.colorSuccess,
+    colorSuccessBg:token.colorSuccessBg,
+    colorError:    token.colorError,
+    colorErrorBg:  token.colorErrorBg,
+    colorWarning:  token.colorWarning,
+    colorWarningBg:token.colorWarningBg,
+    colorInfo:     token.colorInfo,
+    colorInfoBg:   token.colorInfoBg,
+  }
+
   const [compras, setCompras] = useState<Compra[]>(initialCompras);
   const [stats,   setStats]   = useState<Stats>(initialStats);
 
@@ -635,7 +662,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
       render: (_, r) => (
         <Text
           strong
-          style={{ fontFamily: 'monospace', fontSize: 13, color: '#0d9488' }}
+          style={{ fontFamily: 'monospace', fontSize: 13, color: primary }}
         >
           {r.numeroDocumento}
         </Text>
@@ -733,7 +760,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           style={{
             fontVariantNumeric: 'tabular-nums',
             fontSize: 14,
-            color: r.estado === 'ANULADA' ? '#8c8c8c' : '#0d9488',
+            color: r.estado === 'ANULADA' ? C.textMuted : primary,
             textDecoration: r.estado === 'ANULADA' ? 'line-through' : undefined,
           }}
         >
@@ -848,7 +875,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
       width: 95,
       align: 'right',
       render: (_, d) => (
-        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: '#0d9488' }}>
+        <Text strong style={{ fontVariantNumeric: 'tabular-nums', color: primary }}>
           {formatMoney(d.subtotal)}
         </Text>
       ),
@@ -862,45 +889,45 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
       {/* ── KPIs ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #52c41a' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorSuccess}` }}>
             <Statistic
               title="Compras hoy"
               value={stats.comprasHoy}
               precision={2}
-              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontSize: 20 }}
+              prefix={<DollarOutlined style={{ color: C.colorSuccess }} />}
+              valueStyle={{ color: C.colorSuccess, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #0d9488' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${primary}` }}>
             <Statistic
               title="Compras del mes"
               value={stats.comprasMes}
               precision={2}
-              prefix={<ShoppingCartOutlined style={{ color: '#0d9488' }} />}
-              valueStyle={{ color: '#0d9488', fontSize: 20 }}
+              prefix={<ShoppingCartOutlined style={{ color: primary }} />}
+              valueStyle={{ color: primary, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #f59e0b' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorWarning}` }}>
             <Statistic
               title="Créditos pendientes"
               value={stats.pendientesCobro}
-              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
-              valueStyle={{ color: '#f59e0b', fontSize: 20 }}
+              prefix={<ClockCircleOutlined style={{ color: C.colorWarning }} />}
+              valueStyle={{ color: C.colorWarning, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #1677ff' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorInfo}` }}>
             <Statistic
               title="Total del mes"
               value={stats.totalProductosMes + stats.totalGastosMes}
               precision={2}
-              prefix={<CheckCircleOutlined style={{ color: '#1677ff' }} />}
-              valueStyle={{ color: '#1677ff', fontSize: 20 }}
+              prefix={<CheckCircleOutlined style={{ color: C.colorInfo }} />}
+              valueStyle={{ color: C.colorInfo, fontSize: 20 }}
             />
           </Card>
         </Col>
@@ -986,8 +1013,8 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           locale={{
             emptyText: (
               <div style={{ padding: 40, textAlign: 'center' }}>
-                <ShoppingCartOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
-                <div style={{ marginTop: 8, color: '#8c8c8c' }}>
+                <ShoppingCartOutlined style={{ fontSize: 32, color: C.textDisabled }} />
+                <div style={{ marginTop: 8, color: C.textMuted }}>
                   Sin compras registradas
                 </div>
               </div>
@@ -1003,7 +1030,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
         title={
           selected ? (
             <Space>
-              <ShoppingCartOutlined style={{ color: '#0d9488' }} />
+              <ShoppingCartOutlined style={{ color: primary }} />
               <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>
                 {selected.numeroDocumento}
               </span>
@@ -1099,8 +1126,8 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             {/* Totales */}
             <div
               style={{
-                background:   '#fafafa',
-                border:       '1px solid #f0f0f0',
+                background:   C.bgSubtle,
+                border:       `1px solid ${C.border}`,
                 borderRadius: 8,
                 padding:      '12px 16px',
                 marginBottom: 16,
@@ -1132,7 +1159,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                     strong
                     style={{
                       fontSize: 16,
-                      color: selected.estado === 'ANULADA' ? '#8c8c8c' : '#0d9488',
+                      color: selected.estado === 'ANULADA' ? C.textMuted : primary,
                       fontVariantNumeric: 'tabular-nums',
                       textDecoration: selected.estado === 'ANULADA' ? 'line-through' : undefined,
                     }}
@@ -1146,15 +1173,15 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             {/* Pagos CxP (solo si es CREDITO) */}
             {selected.condicionPago === 'CREDITO' && (
               <>
-                <Divider style={{ fontSize: 12, color: '#6b7280', margin: '16px 0 10px' }}>
+                <Divider style={{ fontSize: 12, color: C.textMuted, margin: '16px 0 10px' }}>
                   Pagos realizados
                 </Divider>
                 {loadingPagos ? (
-                  <div style={{ textAlign: 'center', padding: '12px 0', color: '#8c8c8c' }}>
+                  <div style={{ textAlign: 'center', padding: '12px 0', color: C.textMuted }}>
                     Cargando pagos...
                   </div>
                 ) : pagos.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '12px 0', color: '#8c8c8c', fontSize: 13 }}>
+                  <div style={{ textAlign: 'center', padding: '12px 0', color: C.textMuted, fontSize: 13 }}>
                     Sin pagos registrados
                   </div>
                 ) : (
@@ -1186,7 +1213,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                         key:    'monto',
                         align:  'right',
                         render: (_, p) => (
-                          <Text strong style={{ color: '#0d9488', fontVariantNumeric: 'tabular-nums' }}>
+                          <Text strong style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>
                             {formatMoney(p.monto)}
                           </Text>
                         ),
@@ -1208,7 +1235,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                   <Text
                     strong
                     style={{
-                      color: saldoPendiente > 0 ? '#f59e0b' : '#52c41a',
+                      color: saldoPendiente > 0 ? C.colorWarning : C.colorSuccess,
                       fontSize: 14,
                     }}
                   >
@@ -1222,12 +1249,12 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             {selected.notas && (
               <div
                 style={{
-                  background:   '#fffbe6',
-                  border:       '1px solid #ffe58f',
+                  background:   C.colorWarningBg,
+                  border:       `1px solid ${C.colorWarning}40`,
                   borderRadius: 6,
                   padding:      '8px 12px',
                   fontSize:     12,
-                  color:        '#7c5a00',
+                  color:        C.textPrimary,
                   marginTop:    12,
                 }}
               >
@@ -1244,7 +1271,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
         onCancel={() => setAnularOpen(false)}
         title={
           <Space>
-            <StopOutlined style={{ color: '#ff4d4f' }} />
+            <StopOutlined style={{ color: C.colorError }} />
             <span>Anular compra</span>
           </Space>
         }
@@ -1290,7 +1317,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
         onCancel={() => setPagoModalOpen(false)}
         title={
           <Space>
-            <DollarOutlined style={{ color: '#0d9488' }} />
+            <DollarOutlined style={{ color: primary }} />
             <span>Registrar pago</span>
             {selected && (
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -1351,7 +1378,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             />
           </FormField>
           {pagoError && (
-            <p style={{ color: '#ff4d4f', fontSize: 13, margin: 0 }}>{pagoError}</p>
+            <p style={{ color: C.colorError, fontSize: 13, margin: 0 }}>{pagoError}</p>
           )}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
@@ -1375,7 +1402,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
         onCancel={() => { setModalOpen(false); resetModal(); }}
         title={
           <Space>
-            <ShoppingCartOutlined style={{ color: '#0d9488' }} />
+            <ShoppingCartOutlined style={{ color: primary }} />
             <span>Registrar compra</span>
           </Space>
         }
@@ -1389,14 +1416,14 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           {/* ── SECCIÓN 1: CABECERA ── */}
           <div
             style={{
-              background:   '#f9fafb',
-              border:       '1px solid #e5e7eb',
+              background:   C.bgSubtle,
+              border:       `1px solid ${C.border}`,
               borderRadius: 8,
               padding:      '14px 16px',
               marginBottom: 16,
             }}
           >
-            <Title level={5} style={{ margin: '0 0 12px', color: '#374151', fontSize: 13 }}>
+            <Title level={5} style={{ margin: '0 0 12px', color: C.textPrimary, fontSize: 13 }}>
               Datos de cabecera
             </Title>
             <Row gutter={[12, 12]}>
@@ -1513,7 +1540,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           {/* ── SECCIÓN 2: DETALLES ── */}
           <div
             style={{
-              border:       '1px solid #e5e7eb',
+              border:       `1px solid ${C.border}`,
               borderRadius: 8,
               padding:      '14px 16px',
               marginBottom: 16,
@@ -1521,7 +1548,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           >
             <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
               <Col>
-                <Title level={5} style={{ margin: 0, color: '#374151', fontSize: 13 }}>
+                <Title level={5} style={{ margin: 0, color: C.textPrimary, fontSize: 13 }}>
                   Líneas de detalle
                 </Title>
               </Col>
@@ -1647,9 +1674,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                   style={{
                     textAlign:          'right',
                     fontVariantNumeric: 'tabular-nums',
-                    color:              '#0d9488',
+                    color:              primary,
                     fontWeight:         600,
-                    background:         '#f9fafb',
+                    background:         C.bgSubtle,
                   }}
                 />
 
@@ -1685,8 +1712,8 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             <Col xs={24} sm={10}>
               <div
                 style={{
-                  background:   '#f0fdfa',
-                  border:       '1px solid #99f6e4',
+                  background:   C.bgPrimaryLow,
+                  border:       `1px solid ${primary}40`,
                   borderRadius: 8,
                   padding:      '12px 16px',
                 }}
@@ -1715,7 +1742,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                   <Col>
                     <Text
                       strong
-                      style={{ fontSize: 18, color: '#0d9488', fontVariantNumeric: 'tabular-nums' }}
+                      style={{ fontSize: 18, color: primary, fontVariantNumeric: 'tabular-nums' }}
                     >
                       {formatMoney(totalesModal.total)}
                     </Text>
@@ -1727,7 +1754,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
 
           {/* Error del formulario */}
           {formError && (
-            <p style={{ color: '#ff4d4f', fontSize: 13, margin: '8px 0 0' }}>
+            <p style={{ color: C.colorError, fontSize: 13, margin: '8px 0 0' }}>
               {formError}
             </p>
           )}
@@ -1741,7 +1768,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             gap:            8,
             marginTop:      20,
             paddingTop:     16,
-            borderTop:      '1px solid #f0f0f0',
+            borderTop:      `1px solid ${C.border}`,
           }}
         >
           <Button onClick={() => { setModalOpen(false); resetModal(); }}>

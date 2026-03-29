@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   Table, Card, Button, Space, Row, Col,
-  Statistic, Tag, Tooltip, Typography, Avatar,
+  Statistic, Tag, Tooltip, Typography, Avatar, theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -22,6 +22,7 @@ import { Button as SdButton }  from '@/components/ui/button';
 import { Input as SdInput }    from '@/components/ui/input';
 import { FormField }           from '@/components/shared/FormField';
 import { Eye, EyeSlash }       from '@phosphor-icons/react';
+import { useBarberTheme } from '@/context/ThemeContext';
 
 const { Title, Text } = Typography;
 
@@ -45,6 +46,24 @@ function avatarColor(id: number) { return AVATAR_COLORS[id % AVATAR_COLORS.lengt
 
 // ── Componente principal ───────────────────────────────────────────────────
 export default function BarbersClient({ initialBarbers }: { initialBarbers: Barber[] }) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgMuted:       'hsl(var(--bg-muted))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    borderStrong:  'hsl(var(--border-strong))',
+    colorSuccess:  token.colorSuccess,
+  }
+
   const [barbers, setBarbers] = useState<Barber[]>(initialBarbers);
 
   // Estado crear
@@ -215,7 +234,7 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
             <Statistic
               title="Total Barberos"
               value={barbers.length}
-              prefix={<UserOutlined style={{ color: '#0d9488' }} />}
+              prefix={<UserOutlined style={{ color: primary }} />}
             />
           </Card>
         </Col>
@@ -224,7 +243,7 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
             <Statistic
               title="Activos"
               value={activeCount}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              prefix={<CheckCircleOutlined style={{ color: C.colorSuccess }} />}
             />
           </Card>
         </Col>
@@ -270,8 +289,8 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
           locale={{
             emptyText: (
               <div style={{ padding: 40, textAlign: 'center' }}>
-                <ClockCircleOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
-                <div style={{ marginTop: 8, color: '#8c8c8c' }}>
+                <ClockCircleOutlined style={{ fontSize: 32, color: C.textDisabled }} />
+                <div style={{ marginTop: 8, color: C.textMuted }}>
                   No hay barberos registrados. Usa &quot;+ Nuevo barbero&quot;.
                 </div>
               </div>

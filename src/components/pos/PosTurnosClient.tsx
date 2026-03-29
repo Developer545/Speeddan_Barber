@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import {
   Card, Row, Col, Button, InputNumber, Table, Tag, Statistic,
-  Modal, Descriptions, Alert, Space, Divider, Input
+  Modal, Descriptions, Alert, Space, Divider, Input, theme,
 } from 'antd'
 import { PlusOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons'
 import { toast } from 'sonner'
+import { useBarberTheme } from '@/context/ThemeContext'
 
 interface Turno {
   id: number
@@ -47,6 +48,28 @@ export default function PosTurnosClient({
   turnoActivo: Turno | null
   historial: Turno[]
 }) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgMuted:       'hsl(var(--bg-muted))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    borderStrong:  'hsl(var(--border-strong))',
+    colorSuccess:  token.colorSuccess,
+    colorError:    token.colorError,
+    colorWarning:  token.colorWarning,
+    colorWarningBg:token.colorWarningBg,
+    colorErrorBg:  token.colorErrorBg,
+  }
+
   const [historial, setHistorial] = useState<Turno[]>(historialProp)
   const [turno, setTurno] = useState<Turno | null>(turnoActivo)
 
@@ -148,7 +171,7 @@ export default function PosTurnosClient({
     {
       title: 'Total',
       dataIndex: 'totalVentas',
-      render: (v: number) => <b style={{ color: '#0d9488' }}>{fmt(v)}</b>,
+      render: (v: number) => <b style={{ color: primary }}>{fmt(v)}</b>,
       align: 'right' as const,
     },
     {
@@ -157,7 +180,7 @@ export default function PosTurnosClient({
       align: 'right' as const,
       render: (v: number | null) => {
         if (v == null) return '—'
-        const color = v > 0 ? '#52c41a' : v < 0 ? '#ff4d4f' : '#0d9488'
+        const color = v > 0 ? C.colorSuccess : v < 0 ? C.colorError : primary
         return <b style={{ color }}>{v >= 0 ? '+' : ''}{fmt(v)}</b>
       },
     },
@@ -174,8 +197,8 @@ export default function PosTurnosClient({
               message={
                 <Row justify="space-between" align="middle">
                   <Col>
-                    <b style={{ color: '#0d9488' }}>🟢 Turno activo</b>
-                    <span style={{ color: '#666', marginLeft: 12, fontSize: 12 }}>
+                    <b style={{ color: primary }}>🟢 Turno activo</b>
+                    <span style={{ color: C.textSecondary, marginLeft: 12, fontSize: 12 }}>
                       {turno.usuarioApertura} · Desde {new Date(turno.fechaApertura).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })}
                     </span>
                   </Col>
@@ -196,7 +219,7 @@ export default function PosTurnosClient({
                   <Col><b>🔒 No hay turno activo</b> — No se pueden registrar ventas</Col>
                   <Col>
                     <Button type="primary" icon={<UnlockOutlined />}
-                      style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                      style={{ background: primary, borderColor: primary }}
                       onClick={() => setModalAbrir(true)}>
                       Abrir Turno
                     </Button>
@@ -220,7 +243,7 @@ export default function PosTurnosClient({
             <Col xs={12} sm={12} md={6} key={i}>
               <Card size="small">
                 <Statistic title={k.title} value={k.value} prefix={k.prefix} precision={k.prefix ? 2 : 0}
-                  valueStyle={{ color: '#0d9488', fontSize: 'clamp(16px, 4vw, 24px)' }} />
+                  valueStyle={{ color: primary, fontSize: 'clamp(16px, 4vw, 24px)' }} />
               </Card>
             </Col>
           ))}
@@ -249,13 +272,13 @@ export default function PosTurnosClient({
         onOk={abrirTurno}
         confirmLoading={loadingAbrir}
         okText="Abrir Turno"
-        okButtonProps={{ style: { background: '#0d9488', borderColor: '#0d9488' } }}
+        okButtonProps={{ style: { background: primary, borderColor: primary } }}
       >
-        <p style={{ color: '#666', marginBottom: 16 }}>
+        <p style={{ color: C.textSecondary, marginBottom: 16 }}>
           Ingresa el monto de efectivo con el que abres la caja (fondo de cambio).
         </p>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Monto inicial (efectivo en caja)</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>Monto inicial (efectivo en caja)</div>
           <InputNumber
             size="large" prefix="$" style={{ width: 200 }}
             value={montoInicial} min={0} precision={2}
@@ -279,7 +302,7 @@ export default function PosTurnosClient({
         {turno && (
           <>
             {/* Resumen sistema */}
-            <Card size="small" style={{ marginBottom: 16, background: '#f0fdfa' }}>
+            <Card size="small" style={{ marginBottom: 16, background: C.bgPrimaryLow }}>
               <Row gutter={[8, 8]}>
                 <Col xs={12} md={8}>
                   <Statistic title="Fondo inicial" value={turno.montoInicial} prefix="$" precision={2} />
@@ -289,7 +312,7 @@ export default function PosTurnosClient({
                 </Col>
                 <Col xs={24} md={8}>
                   <Statistic title="= Esperado en caja" value={(turno.montoInicial || 0) + (turno.totalEfectivo || 0)}
-                    prefix="$" precision={2} valueStyle={{ color: '#0d9488', fontWeight: 700 }} />
+                    prefix="$" precision={2} valueStyle={{ color: primary, fontWeight: 700 }} />
                 </Col>
               </Row>
               <Divider style={{ margin: '8px 0' }} />
@@ -313,9 +336,9 @@ export default function PosTurnosClient({
                 <table style={{ width: '100%', marginTop: 8 }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', fontWeight: 500, color: '#888', fontSize: 11 }}>Denominación</th>
-                      <th style={{ textAlign: 'center', fontWeight: 500, color: '#888', fontSize: 11 }}>Cantidad</th>
-                      <th style={{ textAlign: 'right', fontWeight: 500, color: '#888', fontSize: 11 }}>Subtotal</th>
+                      <th style={{ textAlign: 'left', fontWeight: 500, color: C.textMuted, fontSize: 11 }}>Denominación</th>
+                      <th style={{ textAlign: 'center', fontWeight: 500, color: C.textMuted, fontSize: 11 }}>Cantidad</th>
+                      <th style={{ textAlign: 'right', fontWeight: 500, color: C.textMuted, fontSize: 11 }}>Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -331,7 +354,7 @@ export default function PosTurnosClient({
                               onChange={v => setArqueoBilletes(prev => ({ ...prev, [String(b)]: v || 0 }))}
                             />
                           </td>
-                          <td style={{ textAlign: 'right', fontSize: 12, color: cant > 0 ? '#0d9488' : '#ccc' }}>
+                          <td style={{ textAlign: 'right', fontSize: 12, color: cant > 0 ? primary : C.textDisabled }}>
                             ${(b * cant).toFixed(2)}
                           </td>
                         </tr>
@@ -339,7 +362,7 @@ export default function PosTurnosClient({
                     })}
                     <tr>
                       <td colSpan={2} style={{ fontWeight: 700, paddingTop: 6 }}>Subtotal billetes</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#0d9488', paddingTop: 6 }}>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: primary, paddingTop: 6 }}>
                         ${totalContadoBilletes.toFixed(2)}
                       </td>
                     </tr>
@@ -352,9 +375,9 @@ export default function PosTurnosClient({
                 <table style={{ width: '100%', marginTop: 8 }}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: 'left', fontWeight: 500, color: '#888', fontSize: 11 }}>Denominación</th>
-                      <th style={{ textAlign: 'center', fontWeight: 500, color: '#888', fontSize: 11 }}>Cantidad</th>
-                      <th style={{ textAlign: 'right', fontWeight: 500, color: '#888', fontSize: 11 }}>Subtotal</th>
+                      <th style={{ textAlign: 'left', fontWeight: 500, color: C.textMuted, fontSize: 11 }}>Denominación</th>
+                      <th style={{ textAlign: 'center', fontWeight: 500, color: C.textMuted, fontSize: 11 }}>Cantidad</th>
+                      <th style={{ textAlign: 'right', fontWeight: 500, color: C.textMuted, fontSize: 11 }}>Subtotal</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -370,7 +393,7 @@ export default function PosTurnosClient({
                               onChange={v => setArqueoMonedas(prev => ({ ...prev, [String(m)]: v || 0 }))}
                             />
                           </td>
-                          <td style={{ textAlign: 'right', fontSize: 12, color: cant > 0 ? '#0d9488' : '#ccc' }}>
+                          <td style={{ textAlign: 'right', fontSize: 12, color: cant > 0 ? primary : C.textDisabled }}>
                             ${(m * cant).toFixed(4).replace(/0+$/, '0').replace(/\.$/, '.00')}
                           </td>
                         </tr>
@@ -378,7 +401,7 @@ export default function PosTurnosClient({
                     })}
                     <tr>
                       <td colSpan={2} style={{ fontWeight: 700, paddingTop: 6 }}>Subtotal monedas</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, color: '#0d9488', paddingTop: 6 }}>
+                      <td style={{ textAlign: 'right', fontWeight: 700, color: primary, paddingTop: 6 }}>
                         ${totalContadoMonedas.toFixed(2)}
                       </td>
                     </tr>
@@ -394,21 +417,21 @@ export default function PosTurnosClient({
               const esperado = (turno.montoInicial || 0) + (turno.totalEfectivo || 0)
               const diferencia = parseFloat((totalContado - esperado).toFixed(2))
               return (
-                <Card size="small" style={{ background: diferencia === 0 ? '#f0fdfa' : diferencia > 0 ? '#fffbe6' : '#fff2f0' }}>
+                <Card size="small" style={{ background: diferencia === 0 ? C.bgPrimaryLow : diferencia > 0 ? C.colorWarningBg : C.colorErrorBg }}>
                   <Row justify="space-between" align="middle">
                     <Col>
-                      <div style={{ fontSize: 12, color: '#888' }}>Total contado</div>
+                      <div style={{ fontSize: 12, color: C.textMuted }}>Total contado</div>
                       <div style={{ fontSize: 22, fontWeight: 700 }}>${totalContado.toFixed(2)}</div>
                     </Col>
                     <Col>
-                      <div style={{ fontSize: 12, color: '#888' }}>Esperado</div>
+                      <div style={{ fontSize: 12, color: C.textMuted }}>Esperado</div>
                       <div style={{ fontSize: 18 }}>${esperado.toFixed(2)}</div>
                     </Col>
                     <Col>
-                      <div style={{ fontSize: 12, color: '#888' }}>Diferencia</div>
+                      <div style={{ fontSize: 12, color: C.textMuted }}>Diferencia</div>
                       <div style={{
                         fontSize: 22, fontWeight: 700,
-                        color: diferencia === 0 ? '#0d9488' : diferencia > 0 ? '#fa8c16' : '#ff4d4f'
+                        color: diferencia === 0 ? primary : diferencia > 0 ? C.colorWarning : C.colorError
                       }}>
                         {diferencia >= 0 ? '+' : ''}{diferencia.toFixed(2)}
                         {diferencia > 0 && ' (SOBRANTE)'}
@@ -422,7 +445,7 @@ export default function PosTurnosClient({
             })()}
 
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Notas de cierre</div>
+              <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 4 }}>Notas de cierre</div>
               <Input.TextArea rows={2} placeholder="Observaciones del cierre..." value={notasCierre}
                 onChange={e => setNotasCierre(e.target.value)} />
             </div>

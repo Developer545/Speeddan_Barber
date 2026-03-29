@@ -24,6 +24,7 @@ import {
   SearchOutlined, ShoppingOutlined,
 } from '@ant-design/icons';
 import { FormField } from '@/components/shared/FormField';
+import { useBarberTheme } from '@/context/ThemeContext';
 
 const { Text } = Typography;
 
@@ -166,6 +167,22 @@ export default function InventarioClient({
   initialKardex,
   initialKardexTotal,
 }: Props) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const C = {
+    bgPage:       'hsl(var(--bg-page))',
+    bgSurface:    'hsl(var(--bg-surface))',
+    bgSubtle:     'hsl(var(--bg-subtle))',
+    bgMuted:      'hsl(var(--bg-muted))',
+    bgPrimaryLow: `${primary}18`,
+    textPrimary:  'hsl(var(--text-primary))',
+    textSecondary:'hsl(var(--text-secondary))',
+    textMuted:    'hsl(var(--text-muted))',
+    textDisabled: 'hsl(var(--text-disabled))',
+    border:       'hsl(var(--border-default))',
+    borderStrong: 'hsl(var(--border-strong))',
+  }
+
   // ── Estado global ──────────────────────────────────────────────────────────
   const [productos,   setProductos]   = useState<Producto[]>(initialProductos);
   const [categorias,  setCategorias]  = useState<Categoria[]>(initialCategorias);
@@ -513,9 +530,9 @@ export default function InventarioClient({
           {/* Avatar con iniciales */}
           <div style={{
             width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-            background: r.stockBajo ? '#fff1f0' : '#f0fdfa',
-            border:     `1px solid ${r.stockBajo ? '#ffa39e' : '#99f6e4'}`,
-            color:      r.stockBajo ? '#cf1322' : '#0d9488',
+            background: r.stockBajo ? '#fff1f0' : `${primary}18`,
+            border:     `1px solid ${r.stockBajo ? '#ffa39e' : `${primary}30`}`,
+            color:      r.stockBajo ? '#cf1322' : primary,
             display:    'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 700,
           }}>
@@ -551,7 +568,7 @@ export default function InventarioClient({
         return (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-              <Text style={{ fontSize: 13, fontWeight: 600, color: status === 'exception' ? '#cf1322' : '#0d9488' }}>
+              <Text style={{ fontSize: 13, fontWeight: 600, color: status === 'exception' ? '#cf1322' : primary }}>
                 {r.stockActual} {r.unidadMedida}
               </Text>
               {r.stockBajo && (
@@ -565,8 +582,8 @@ export default function InventarioClient({
               status={status}
               size="small"
               showInfo={false}
-              strokeColor={status === 'exception' ? '#ff4d4f' : status === 'normal' ? '#faad14' : '#0d9488'}
-              trailColor="#f0f0f0"
+              strokeColor={status === 'exception' ? '#ff4d4f' : status === 'normal' ? '#faad14' : primary}
+              trailColor={C.bgMuted}
             />
             <Text type="secondary" style={{ fontSize: 10 }}>
               Mín: {r.stockMinimo} {r.unidadMedida}
@@ -593,7 +610,7 @@ export default function InventarioClient({
       width:  120,
       align:  'right',
       render: (_, r) => (
-        <Text strong style={{ color: '#0d9488', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+        <Text strong style={{ color: primary, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
           {formatMoney(r.precioVenta)}
         </Text>
       ),
@@ -708,7 +725,7 @@ export default function InventarioClient({
         <Space>
           <Text type="secondary" style={{ fontSize: 11 }}>{k.stockAnterior}</Text>
           <Text type="secondary" style={{ fontSize: 11 }}>→</Text>
-          <Text strong style={{ fontSize: 12, color: k.stockNuevo < k.stockAnterior ? '#cf1322' : '#0d9488' }}>
+          <Text strong style={{ fontSize: 12, color: k.stockNuevo < k.stockAnterior ? '#cf1322' : primary }}>
             {k.stockNuevo}
           </Text>
         </Space>
@@ -811,7 +828,7 @@ export default function InventarioClient({
         <Space size={4}>
           <Text type="secondary" style={{ fontSize: 11 }}>{k.stockAnterior}</Text>
           <Text type="secondary">→</Text>
-          <Text strong style={{ fontSize: 12, color: k.stockNuevo < k.stockAnterior ? '#cf1322' : '#0d9488' }}>
+          <Text strong style={{ fontSize: 12, color: k.stockNuevo < k.stockAnterior ? '#cf1322' : primary }}>
             {k.stockNuevo}
           </Text>
         </Space>
@@ -826,17 +843,17 @@ export default function InventarioClient({
       {/* ── KPIs ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #0d9488' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${primary}` }}>
             <Statistic
               title="Total productos"
               value={resumen.totalProductos}
-              prefix={<ShoppingOutlined style={{ color: '#0d9488' }} />}
-              valueStyle={{ color: '#0d9488', fontSize: 22 }}
+              prefix={<ShoppingOutlined style={{ color: primary }} />}
+              valueStyle={{ color: primary, fontSize: 22 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: `3px solid ${resumen.productosStockBajo > 0 ? '#ff4d4f' : '#d9d9d9'}` }}>
+          <Card size="small" style={{ borderTop: `3px solid ${resumen.productosStockBajo > 0 ? '#ff4d4f' : C.border}` }}>
             <Statistic
               title={
                 resumen.productosStockBajo > 0
@@ -844,8 +861,8 @@ export default function InventarioClient({
                   : 'Stock bajo'
               }
               value={resumen.productosStockBajo}
-              prefix={<WarningOutlined style={{ color: resumen.productosStockBajo > 0 ? '#ff4d4f' : '#bfbfbf' }} />}
-              valueStyle={{ color: resumen.productosStockBajo > 0 ? '#ff4d4f' : '#bfbfbf', fontSize: 22 }}
+              prefix={<WarningOutlined style={{ color: resumen.productosStockBajo > 0 ? '#ff4d4f' : C.textDisabled }} />}
+              valueStyle={{ color: resumen.productosStockBajo > 0 ? '#ff4d4f' : C.textDisabled, fontSize: 22 }}
             />
           </Card>
         </Col>
@@ -936,7 +953,7 @@ export default function InventarioClient({
                         type="primary"
                         icon={<PlusOutlined />}
                         onClick={openCreate}
-                        style={{ background: '#0d9488', borderColor: '#0d9488' }}
+                        style={{ background: primary, borderColor: primary }}
                       >
                         Nuevo producto
                       </Button>
@@ -960,7 +977,7 @@ export default function InventarioClient({
                         {resumen.productosStockBajo} {resumen.productosStockBajo === 1 ? 'producto tiene' : 'productos tienen'} stock por debajo del mínimo.{' '}
                       </Text>
                       <button
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0d9488', fontWeight: 600, fontSize: 13, padding: 0 }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: primary, fontWeight: 600, fontSize: 13, padding: 0 }}
                         onClick={() => setSoloStockBajo(true)}
                       >
                         Ver productos
@@ -984,8 +1001,8 @@ export default function InventarioClient({
                     locale={{
                       emptyText: (
                         <div style={{ padding: 48, textAlign: 'center' }}>
-                          <InboxOutlined style={{ fontSize: 36, color: '#bfbfbf' }} />
-                          <div style={{ marginTop: 10, color: '#8c8c8c' }}>
+                          <InboxOutlined style={{ fontSize: 36, color: C.textDisabled }} />
+                          <div style={{ marginTop: 10, color: C.textMuted }}>
                             {soloStockBajo ? 'No hay productos con stock bajo' : 'Sin productos registrados'}
                           </div>
                           {!soloStockBajo && (
@@ -1024,8 +1041,8 @@ export default function InventarioClient({
                   locale={{
                     emptyText: (
                       <div style={{ padding: 40, textAlign: 'center' }}>
-                        <HistoryOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
-                        <div style={{ marginTop: 8, color: '#8c8c8c' }}>Sin movimientos de inventario</div>
+                        <HistoryOutlined style={{ fontSize: 32, color: C.textDisabled }} />
+                        <div style={{ marginTop: 8, color: C.textMuted }}>Sin movimientos de inventario</div>
                       </div>
                     ),
                   }}
@@ -1044,7 +1061,7 @@ export default function InventarioClient({
         onCancel={() => setModalOpen(false)}
         title={
           <Space>
-            <AppstoreOutlined style={{ color: '#0d9488' }} />
+            <AppstoreOutlined style={{ color: primary }} />
             <span>{editTarget ? 'Editar producto' : 'Nuevo producto'}</span>
           </Space>
         }
@@ -1115,7 +1132,7 @@ export default function InventarioClient({
                 onClick={handleSaveCategoria}
                 loading={savingCat}
                 disabled={!newCatName.trim()}
-                style={{ background: '#0d9488', borderColor: '#0d9488', color: '#fff' }}
+                style={{ background: primary, borderColor: primary, color: '#fff' }}
               >
                 <PlusOutlined />
               </Button>
@@ -1205,7 +1222,7 @@ export default function InventarioClient({
             type="primary"
             loading={formLoading}
             onClick={handleSubmitProducto}
-            style={{ background: '#0d9488', borderColor: '#0d9488' }}
+            style={{ background: primary, borderColor: primary }}
           >
             {formLoading ? 'Guardando...' : editTarget ? 'Guardar cambios' : 'Crear producto'}
           </Button>
@@ -1218,7 +1235,7 @@ export default function InventarioClient({
       <Drawer
         title={
           <Space>
-            <HistoryOutlined style={{ color: '#0d9488' }} />
+            <HistoryOutlined style={{ color: primary }} />
             <span>
               Kardex: {kardexProducto?.nombre ?? 'Producto'}
             </span>
@@ -1244,27 +1261,27 @@ export default function InventarioClient({
       >
         {/* Resumen del producto */}
         {kardexProducto && (
-          <Card size="small" style={{ marginBottom: 16, background: '#f0fdfa', border: '1px solid #99f6e4' }}>
+          <Card size="small" style={{ marginBottom: 16, background: `${primary}18`, border: `1px solid ${primary}30` }}>
             <Row gutter={[16, 8]}>
               <Col span={6}>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>Stock actual</div>
-                <div style={{ fontWeight: 700, fontSize: 18, color: kardexProducto.stockBajo ? '#cf1322' : '#0d9488' }}>
+                <div style={{ fontSize: 11, color: C.textMuted }}>Stock actual</div>
+                <div style={{ fontWeight: 700, fontSize: 18, color: kardexProducto.stockBajo ? '#cf1322' : primary }}>
                   {kardexProducto.stockActual} <span style={{ fontSize: 12, fontWeight: 400 }}>{kardexProducto.unidadMedida}</span>
                 </div>
               </Col>
               <Col span={6}>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>Mínimo</div>
+                <div style={{ fontSize: 11, color: C.textMuted }}>Mínimo</div>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>
                   {kardexProducto.stockMinimo} {kardexProducto.unidadMedida}
                 </div>
               </Col>
               <Col span={6}>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>Costo prom.</div>
+                <div style={{ fontSize: 11, color: C.textMuted }}>Costo prom.</div>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{formatMoney(kardexProducto.costoPromedio)}</div>
               </Col>
               <Col span={6}>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>Precio venta</div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#0d9488' }}>{formatMoney(kardexProducto.precioVenta)}</div>
+                <div style={{ fontSize: 11, color: C.textMuted }}>Precio venta</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: primary }}>{formatMoney(kardexProducto.precioVenta)}</div>
               </Col>
             </Row>
           </Card>
@@ -1286,8 +1303,8 @@ export default function InventarioClient({
           }}
           locale={{
             emptyText: (
-              <div style={{ padding: 32, textAlign: 'center', color: '#8c8c8c' }}>
-                <HistoryOutlined style={{ fontSize: 28, color: '#bfbfbf' }} />
+              <div style={{ padding: 32, textAlign: 'center', color: C.textMuted }}>
+                <HistoryOutlined style={{ fontSize: 28, color: C.textDisabled }} />
                 <div style={{ marginTop: 8 }}>Sin movimientos registrados</div>
               </div>
             ),
@@ -1303,7 +1320,7 @@ export default function InventarioClient({
         onCancel={() => setAjusteOpen(false)}
         title={
           <Space>
-            <SwapOutlined style={{ color: '#0d9488' }} />
+            <SwapOutlined style={{ color: primary }} />
             <span>
               {ajusteEffectiveProducto
                 ? `Ajuste de stock — ${ajusteEffectiveProducto.nombre}`
@@ -1343,16 +1360,16 @@ export default function InventarioClient({
 
         {/* Info del producto seleccionado */}
         {ajusteEffectiveProducto && (
-          <Card size="small" style={{ marginBottom: 14, background: '#fafafa' }}>
+          <Card size="small" style={{ marginBottom: 14, background: C.bgSubtle }}>
             <Row gutter={16}>
               <Col span={12}>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Stock actual</div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: ajusteEffectiveProducto.stockBajo ? '#cf1322' : '#0d9488' }}>
+                <div style={{ fontSize: 11, color: C.textMuted }}>Stock actual</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: ajusteEffectiveProducto.stockBajo ? '#cf1322' : primary }}>
                   {ajusteEffectiveProducto.stockActual} {ajusteEffectiveProducto.unidadMedida}
                 </div>
               </Col>
               <Col span={12}>
-                <div style={{ fontSize: 11, color: '#8c8c8c' }}>Stock mínimo</div>
+                <div style={{ fontSize: 11, color: C.textMuted }}>Stock mínimo</div>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>
                   {ajusteEffectiveProducto.stockMinimo} {ajusteEffectiveProducto.unidadMedida}
                 </div>
@@ -1440,7 +1457,7 @@ export default function InventarioClient({
             type="primary"
             loading={ajusteLoading}
             onClick={handleSubmitAjuste}
-            style={{ background: '#0d9488', borderColor: '#0d9488' }}
+            style={{ background: primary, borderColor: primary }}
           >
             {ajusteLoading ? 'Ajustando...' : 'Confirmar ajuste'}
           </Button>

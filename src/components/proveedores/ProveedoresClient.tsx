@@ -11,7 +11,7 @@ import {
   Table, Card, Button, Row, Col,
   Statistic, Tag, Select, Modal, Input,
   Typography, Tooltip, Popconfirm, Space,
-  Drawer, Descriptions, Form,
+  Drawer, Descriptions, Form, theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -23,6 +23,7 @@ import {
   CheckCircleOutlined, StopOutlined,
 } from '@ant-design/icons';
 import { FormField } from '@/components/shared/FormField';
+import { useBarberTheme } from '@/context/ThemeContext';
 
 const { Title, Text } = Typography;
 
@@ -101,6 +102,27 @@ type Props = {
 };
 
 export default function ProveedoresClient({ initialProveedores }: Props) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgMuted:       'hsl(var(--bg-muted))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    borderStrong:  'hsl(var(--border-strong))',
+    colorSuccess:  token.colorSuccess,
+    colorError:    token.colorError,
+    colorWarning:  token.colorWarning,
+    colorInfo:     token.colorInfo,
+  }
+
   const [proveedores, setProveedores] = useState<Proveedor[]>(initialProveedores);
 
   // Filtros
@@ -282,7 +304,7 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
         <Space size={10} style={{ opacity: r.activo ? 1 : 0.5 }}>
           <div style={{
             width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-            background: r.tipo === 'INTERNACIONAL' ? '#1677ff' : '#0d9488',
+            background: r.tipo === 'INTERNACIONAL' ? C.colorInfo : primary,
             color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 700,
@@ -329,13 +351,13 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
         <div style={{ fontSize: 12 }}>
           {r.telefono && (
             <div>
-              <PhoneOutlined style={{ marginRight: 4, color: '#8c8c8c' }} />
+              <PhoneOutlined style={{ marginRight: 4, color: C.textMuted }} />
               {r.telefono}
             </div>
           )}
           {r.correo && (
             <div style={{ marginTop: 2 }}>
-              <MailOutlined style={{ marginRight: 4, color: '#8c8c8c' }} />
+              <MailOutlined style={{ marginRight: 4, color: C.textMuted }} />
               {r.correo}
             </div>
           )}
@@ -428,42 +450,42 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
       {/* ── KPIs ──────────────────────────────────────────────────────── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #0d9488' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${primary}` }}>
             <Statistic
               title="Total proveedores"
               value={proveedores.length}
-              prefix={<ShopOutlined style={{ color: '#0d9488' }} />}
-              valueStyle={{ color: '#0d9488', fontSize: 20 }}
+              prefix={<ShopOutlined style={{ color: primary }} />}
+              valueStyle={{ color: primary, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #52c41a' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorSuccess}` }}>
             <Statistic
               title="Nacionales"
               value={proveedores.filter(p => p.tipo === 'NACIONAL').length}
-              prefix={<ShopOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontSize: 20 }}
+              prefix={<ShopOutlined style={{ color: C.colorSuccess }} />}
+              valueStyle={{ color: C.colorSuccess, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #1677ff' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorInfo}` }}>
             <Statistic
               title="Internacionales"
               value={proveedores.filter(p => p.tipo === 'INTERNACIONAL').length}
-              prefix={<GlobalOutlined style={{ color: '#1677ff' }} />}
-              valueStyle={{ color: '#1677ff', fontSize: 20 }}
+              prefix={<GlobalOutlined style={{ color: C.colorInfo }} />}
+              valueStyle={{ color: C.colorInfo, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #f59e0b' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorWarning}` }}>
             <Statistic
               title="Con crédito"
               value={proveedores.filter(p => p.plazoCredito > 0).length}
-              prefix={<CreditCardOutlined style={{ color: '#f59e0b' }} />}
-              valueStyle={{ color: '#f59e0b', fontSize: 20 }}
+              prefix={<CreditCardOutlined style={{ color: C.colorWarning }} />}
+              valueStyle={{ color: C.colorWarning, fontSize: 20 }}
             />
           </Card>
         </Col>
@@ -531,8 +553,8 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
           locale={{
             emptyText: (
               <div style={{ padding: 40, textAlign: 'center' }}>
-                <ShopOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
-                <div style={{ marginTop: 8, color: '#8c8c8c' }}>
+                <ShopOutlined style={{ fontSize: 32, color: C.textDisabled }} />
+                <div style={{ marginTop: 8, color: C.textMuted }}>
                   {search || filterTipo
                     ? 'Sin resultados. Intenta con otro término.'
                     : 'No hay proveedores aún. Usa "+ Nuevo proveedor".'}
@@ -573,7 +595,7 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
               <div style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 width: 64, height: 64, borderRadius: '50%',
-                background: detailRecord.tipo === 'INTERNACIONAL' ? '#1677ff' : '#0d9488',
+                background: detailRecord.tipo === 'INTERNACIONAL' ? C.colorInfo : primary,
                 fontSize: 24, fontWeight: 700, color: '#fff',
                 marginBottom: 12,
               }}>
@@ -674,7 +696,7 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
         cancelText="Cancelar"
         title={
           <Space>
-            <ShopOutlined style={{ color: '#0d9488' }} />
+            <ShopOutlined style={{ color: primary }} />
             <span>{editing ? 'Editar proveedor' : 'Nuevo proveedor'}</span>
           </Space>
         }
@@ -731,7 +753,7 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
                 >
                   <Input
                     type="email"
-                    prefix={<MailOutlined style={{ color: '#8c8c8c' }} />}
+                    prefix={<MailOutlined style={{ color: C.textMuted }} />}
                     placeholder="proveedor@ejemplo.com"
                   />
                 </Form.Item>
@@ -741,7 +763,7 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
               <FormField label="Teléfono">
                 <Form.Item name="telefono" style={{ marginBottom: 0 }}>
                   <Input
-                    prefix={<PhoneOutlined style={{ color: '#8c8c8c' }} />}
+                    prefix={<PhoneOutlined style={{ color: C.textMuted }} />}
                     placeholder="+503 2000-0000"
                   />
                 </Form.Item>
@@ -794,7 +816,7 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
               <FormField label="Persona de contacto">
                 <Form.Item name="contacto" style={{ marginBottom: 0 }}>
                   <Input
-                    prefix={<UserOutlined style={{ color: '#8c8c8c' }} />}
+                    prefix={<UserOutlined style={{ color: C.textMuted }} />}
                     placeholder="Nombre del representante o vendedor"
                   />
                 </Form.Item>
@@ -817,7 +839,7 @@ export default function ProveedoresClient({ initialProveedores }: Props) {
         </Form>
 
         {formError && (
-          <p style={{ color: '#ff4d4f', fontSize: 13, margin: '8px 0 0' }}>
+          <p style={{ color: C.colorError, fontSize: 13, margin: '8px 0 0' }}>
             {formError}
           </p>
         )}

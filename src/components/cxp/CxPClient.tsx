@@ -13,7 +13,7 @@ import {
   Statistic, Tag, Modal, Input,
   Typography, Tabs, Drawer, Select,
   Space, Alert, Descriptions, Badge,
-  Avatar, Divider,
+  Avatar, Divider, theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -25,6 +25,7 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons';
 import { FormField } from '@/components/shared/FormField';
+import { useBarberTheme } from '@/context/ThemeContext';
 
 const { Text } = Typography;
 
@@ -141,16 +142,41 @@ function diasRestantesLabel(dias: number) {
   return `${dias} días`;
 }
 
-function diasColor(dias: number, estado: EstadoCxP) {
-  if (estado === 'PAGADA') return '#6b7280';
-  if (dias < 0)  return '#ef4444';
-  if (dias <= 5) return '#f59e0b';
-  return '#10b981';
+function diasColor(dias: number, estado: EstadoCxP, colors: { disabled: string; error: string; warning: string; success: string }) {
+  if (estado === 'PAGADA') return colors.disabled;
+  if (dias < 0)  return colors.error;
+  if (dias <= 5) return colors.warning;
+  return colors.success;
 }
 
 // ── Componente ─────────────────────────────────────────────────────────────────
 
 export default function CxPClient({ initialList, initialResumen }: Props) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgMuted:       'hsl(var(--bg-muted))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    borderStrong:  'hsl(var(--border-strong))',
+    colorSuccess:  token.colorSuccess,
+    colorSuccessBg:token.colorSuccessBg,
+    colorError:    token.colorError,
+    colorErrorBg:  token.colorErrorBg,
+    colorWarning:  token.colorWarning,
+    colorWarningBg:token.colorWarningBg,
+    colorInfo:     token.colorInfo,
+    colorInfoBg:   token.colorInfoBg,
+  }
+
   const [list,    setList]    = useState<CxPItem[]>(initialList);
   const [resumen, setResumen] = useState<Resumen>(initialResumen);
 
@@ -281,7 +307,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
       render: (_, r) => (
         <Space size={10}>
           <Avatar
-            style={{ background: '#0d9488', fontSize: 11, fontWeight: 700, flexShrink: 0 }}
+            style={{ background: primary, fontSize: 11, fontWeight: 700, flexShrink: 0 }}
             size={34}
           >
             {r.proveedor ? getInitials(r.proveedor.nombre) : '?'}
@@ -322,7 +348,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
       key:    'vencimiento',
       width:  110,
       render: (_, r) => (
-        <Text style={{ fontSize: 12, color: diasColor(r.diasRestantes, r.estadoCxP) }}>
+        <Text style={{ fontSize: 12, color: diasColor(r.diasRestantes, r.estadoCxP, { disabled: C.textDisabled, error: C.colorError, warning: C.colorWarning, success: C.colorSuccess }) }}>
           {formatFecha(r.fechaVencimiento)}
         </Text>
       ),
@@ -332,7 +358,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
       key:    'dias',
       width:  120,
       render: (_, r) => (
-        <Text style={{ fontSize: 12, fontWeight: 500, color: diasColor(r.diasRestantes, r.estadoCxP) }}>
+        <Text style={{ fontSize: 12, fontWeight: 500, color: diasColor(r.diasRestantes, r.estadoCxP, { disabled: C.textDisabled, error: C.colorError, warning: C.colorWarning, success: C.colorSuccess }) }}>
           {r.estadoCxP === 'PAGADA' ? '—' : diasRestantesLabel(r.diasRestantes)}
         </Text>
       ),
@@ -356,7 +382,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
       align:      'right',
       responsive: ['lg'],
       render:     (_, r) => (
-        <Text style={{ fontSize: 13, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>
+        <Text style={{ fontSize: 13, color: C.colorSuccess, fontVariantNumeric: 'tabular-nums' }}>
           {formatMoney(r.totalAbonado)}
         </Text>
       ),
@@ -370,7 +396,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
         <Text strong style={{
           fontSize: 14,
           fontVariantNumeric: 'tabular-nums',
-          color: r.saldo > 0 ? '#ef4444' : '#10b981',
+          color: r.saldo > 0 ? C.colorError : C.colorSuccess,
         }}>
           {formatMoney(r.saldo)}
         </Text>
@@ -421,7 +447,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
     {
       key:   'VENCIDA',
       label: (
-        <Badge count={resumen.countVencidas} color="#ef4444" size="small" offset={[6, -2]}>
+        <Badge count={resumen.countVencidas} color={C.colorError} size="small" offset={[6, -2]}>
           <span>Vencidas</span>
         </Badge>
       ),
@@ -429,7 +455,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
     {
       key:   'POR_VENCER',
       label: (
-        <Badge count={resumen.countPorVencer} color="#f59e0b" size="small" offset={[6, -2]}>
+        <Badge count={resumen.countPorVencer} color={C.colorWarning} size="small" offset={[6, -2]}>
           <span>Por vencer</span>
         </Badge>
       ),
@@ -451,56 +477,56 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
       {/* ── KPIs ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={12} md={8} lg={4}>
-          <Card size="small" style={{ borderTop: '3px solid #0d9488' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${primary}` }}>
             <Statistic
               title="Total documentos"
               value={resumen.totalDocumentos}
-              prefix={<FileTextOutlined style={{ color: '#0d9488' }} />}
-              valueStyle={{ color: '#0d9488', fontSize: 22 }}
+              prefix={<FileTextOutlined style={{ color: primary }} />}
+              valueStyle={{ color: primary, fontSize: 22 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={8} lg={5}>
-          <Card size="small" style={{ borderTop: '3px solid #6366f1' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorInfo}` }}>
             <Statistic
               title="Monto total"
               value={resumen.totalMonto}
               precision={2}
-              prefix={<DollarOutlined style={{ color: '#6366f1' }} />}
-              valueStyle={{ color: '#6366f1', fontSize: 20 }}
+              prefix={<DollarOutlined style={{ color: C.colorInfo }} />}
+              valueStyle={{ color: C.colorInfo, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={8} lg={5}>
-          <Card size="small" style={{ borderTop: '3px solid #ef4444' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorError}` }}>
             <Statistic
               title="Vencido"
               value={resumen.montoVencido}
               precision={2}
-              prefix={<ExclamationCircleOutlined style={{ color: '#ef4444' }} />}
-              valueStyle={{ color: '#ef4444', fontSize: 20 }}
+              prefix={<ExclamationCircleOutlined style={{ color: C.colorError }} />}
+              valueStyle={{ color: C.colorError, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={8} lg={5}>
-          <Card size="small" style={{ borderTop: '3px solid #f59e0b' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorWarning}` }}>
             <Statistic
               title="Por vencer (0–5 días)"
               value={resumen.montoPorVencer}
               precision={2}
-              prefix={<WarningOutlined style={{ color: '#f59e0b' }} />}
-              valueStyle={{ color: '#f59e0b', fontSize: 20 }}
+              prefix={<WarningOutlined style={{ color: C.colorWarning }} />}
+              valueStyle={{ color: C.colorWarning, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={8} lg={5}>
-          <Card size="small" style={{ borderTop: '3px solid #10b981' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorSuccess}` }}>
             <Statistic
               title="Vigente"
               value={resumen.montoVigente}
               precision={2}
-              prefix={<CheckCircleOutlined style={{ color: '#10b981' }} />}
-              valueStyle={{ color: '#10b981', fontSize: 20 }}
+              prefix={<CheckCircleOutlined style={{ color: C.colorSuccess }} />}
+              valueStyle={{ color: C.colorSuccess, fontSize: 20 }}
             />
           </Card>
         </Col>
@@ -558,8 +584,8 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
           locale={{
             emptyText: (
               <div style={{ padding: 40, textAlign: 'center' }}>
-                <CheckCircleOutlined style={{ fontSize: 32, color: '#10b981' }} />
-                <div style={{ marginTop: 8, color: '#8c8c8c' }}>
+                <CheckCircleOutlined style={{ fontSize: 32, color: C.colorSuccess }} />
+                <div style={{ marginTop: 8, color: C.textMuted }}>
                   No hay cuentas por pagar en este estado
                 </div>
               </div>
@@ -572,7 +598,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
       <Drawer
         title={
           <Space>
-            <FileTextOutlined style={{ color: '#0d9488' }} />
+            <FileTextOutlined style={{ color: primary }} />
             <span>Detalle de la cuenta por pagar</span>
           </Space>
         }
@@ -601,17 +627,17 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
                 </Tag>
               </div>
               <Row gutter={0} style={{ marginTop: 12 }}>
-                <Col span={8} style={{ textAlign: 'center', borderRight: '1px solid #f0f0f0' }}>
-                  <div style={{ fontSize: 11, color: '#8c8c8c' }}>Total</div>
+                <Col span={8} style={{ textAlign: 'center', borderRight: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Total</div>
                   <div style={{ fontWeight: 700, fontSize: 18 }}>{formatMoney(selected.total)}</div>
                 </Col>
-                <Col span={8} style={{ textAlign: 'center', borderRight: '1px solid #f0f0f0' }}>
-                  <div style={{ fontSize: 11, color: '#8c8c8c' }}>Abonado</div>
-                  <div style={{ fontWeight: 700, fontSize: 18, color: '#10b981' }}>{formatMoney(selected.totalAbonado)}</div>
+                <Col span={8} style={{ textAlign: 'center', borderRight: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Abonado</div>
+                  <div style={{ fontWeight: 700, fontSize: 18, color: C.colorSuccess }}>{formatMoney(selected.totalAbonado)}</div>
                 </Col>
                 <Col span={8} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: '#8c8c8c' }}>Saldo</div>
-                  <div style={{ fontWeight: 700, fontSize: 18, color: selected.saldo > 0 ? '#ef4444' : '#10b981' }}>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Saldo</div>
+                  <div style={{ fontWeight: 700, fontSize: 18, color: selected.saldo > 0 ? C.colorError : C.colorSuccess }}>
                     {formatMoney(selected.saldo)}
                   </div>
                 </Col>
@@ -655,7 +681,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
                 Historial de pagos ({selected.pagos.length})
               </Text>
               {selected.pagos.length === 0 ? (
-                <div style={{ color: '#8c8c8c', fontSize: 12, marginTop: 8 }}>
+                <div style={{ color: C.textMuted, fontSize: 12, marginTop: 8 }}>
                   Sin pagos registrados
                 </div>
               ) : (
@@ -664,25 +690,25 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
                     <div key={p.id} style={{
                       display: 'flex', alignItems: 'center',
                       padding: '8px 12px', borderRadius: 8,
-                      border: '1px solid #f0f0f0', background: '#fafafa',
+                      border: `1px solid ${C.border}`, background: C.bgSubtle,
                     }}>
                       <div style={{
                         width: 32, height: 32, borderRadius: '50%',
-                        background: '#f0fdfa', color: '#0d9488',
+                        background: C.bgPrimaryLow, color: primary,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 14, marginRight: 10, flexShrink: 0,
                       }}>
                         {METODO_ICONS[p.metodoPago]}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: '#10b981' }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: C.colorSuccess }}>
                           {formatMoney(p.monto)}
                         </div>
-                        <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                        <div style={{ fontSize: 11, color: C.textMuted }}>
                           {METODO_LABELS[p.metodoPago] ?? p.metodoPago} · {formatFecha(p.fecha)}
                         </div>
                         {p.referencia && (
-                          <div style={{ fontSize: 11, color: '#8c8c8c' }}>Ref: {p.referencia}</div>
+                          <div style={{ fontSize: 11, color: C.textMuted }}>Ref: {p.referencia}</div>
                         )}
                       </div>
                     </div>
@@ -714,7 +740,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
         onCancel={() => setPagoOpen(false)}
         title={
           <Space>
-            <DollarOutlined style={{ color: '#0d9488' }} />
+            <DollarOutlined style={{ color: primary }} />
             <span>Registrar pago</span>
           </Space>
         }
@@ -727,18 +753,18 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
             {/* Resumen rápido */}
             <Card
               size="small"
-              style={{ background: '#f0fdfa', border: '1px solid #99f6e4', marginBottom: 16 }}
+              style={{ background: C.bgPrimaryLow, border: `1px solid ${primary}40`, marginBottom: 16 }}
             >
               <Row gutter={[8, 0]}>
                 <Col span={12}>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>Proveedor</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Proveedor</div>
                   <div style={{ fontWeight: 500, fontSize: 13 }}>
                     {selected.proveedor?.nombre ?? '—'}
                   </div>
                 </Col>
                 <Col span={12}>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>Saldo pendiente</div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: '#ef4444' }}>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>Saldo pendiente</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: C.colorError }}>
                     {formatMoney(selected.saldo)}
                   </div>
                 </Col>
@@ -797,7 +823,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
               </FormField>
 
               {pagoError && (
-                <p style={{ color: '#ff4d4f', fontSize: 13, margin: 0 }}>{pagoError}</p>
+                <p style={{ color: C.colorError, fontSize: 13, margin: 0 }}>{pagoError}</p>
               )}
             </div>
 

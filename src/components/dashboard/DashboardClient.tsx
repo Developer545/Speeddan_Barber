@@ -8,7 +8,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as ReTooltip, ResponsiveContainer,
 } from 'recharts';
-import { Row, Col, Card, Statistic, Button, Typography, Tag, Space } from 'antd';
+import { Row, Col, Card, Statistic, Button, Typography, Tag, Space, theme } from 'antd';
+import { useBarberTheme } from '@/context/ThemeContext';
 import {
   CalendarOutlined, ClockCircleOutlined, DollarOutlined,
   TeamOutlined, ScissorOutlined, UserOutlined, CreditCardOutlined,
@@ -56,14 +57,16 @@ function CustomTooltip({ active, payload, label }: {
   payload?: Array<{ value: number }>;
   label?: string;
 }) {
+  const { theme: barberTheme } = useBarberTheme()
+  const { token } = theme.useToken()
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: '#fff', border: '1px solid #e8e8e8',
+      background: 'hsl(var(--bg-surface))', border: '1px solid hsl(var(--border-default))',
       borderRadius: 8, padding: '8px 14px', fontSize: 12, boxShadow: '0 2px 8px rgba(0,0,0,.08)',
     }}>
       <div style={{ fontWeight: 600, marginBottom: 2 }}>{label}</div>
-      <div style={{ color: '#0d9488' }}>${payload[0].value.toFixed(2)}</div>
+      <div style={{ color: barberTheme.colorPrimary }}>${payload[0].value.toFixed(2)}</div>
     </div>
   );
 }
@@ -80,6 +83,18 @@ export default function DashboardClient({
   userRole:   string;
   tenantSlug: string;
 }) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPrimaryLow:  `${primary}18`,
+    bgSurface:     'hsl(var(--bg-surface))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    colorSuccess:  token.colorSuccess,
+    colorWarning:  token.colorWarning,
+  }
   return (
     <>
       {/* ── Bienvenida ── */}
@@ -111,27 +126,27 @@ export default function DashboardClient({
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         {/* Ingresos totales hoy */}
         <Col xs={12} sm={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #52c41a' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorSuccess}` }}>
             <Statistic
               title="Ingresos hoy"
               value={stats.ingresosHoy}
               precision={2}
-              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontSize: 20 }}
-              suffix={<span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400 }}>USD</span>}
+              prefix={<DollarOutlined style={{ color: C.colorSuccess }} />}
+              valueStyle={{ color: C.colorSuccess, fontSize: 20 }}
+              suffix={<span style={{ fontSize: 12, color: C.textMuted, fontWeight: 400 }}>USD</span>}
             />
           </Card>
         </Col>
 
         {/* Ventas POS hoy (count) */}
         <Col xs={12} sm={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #0d9488' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${primary}` }}>
             <Statistic
               title="Ventas POS hoy"
               value={stats.ventasPosHoy}
-              prefix={<ShoppingCartOutlined style={{ color: '#0d9488' }} />}
+              prefix={<ShoppingCartOutlined style={{ color: primary }} />}
               valueStyle={{ fontSize: 20 }}
-              suffix={<span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400 }}>ventas</span>}
+              suffix={<span style={{ fontSize: 12, color: C.textMuted, fontWeight: 400 }}>ventas</span>}
             />
           </Card>
         </Col>
@@ -145,7 +160,7 @@ export default function DashboardClient({
               precision={2}
               prefix={<LineChartOutlined style={{ color: '#7c3aed' }} />}
               valueStyle={{ color: '#7c3aed', fontSize: 20 }}
-              suffix={<span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400 }}>7 días</span>}
+              suffix={<span style={{ fontSize: 12, color: C.textMuted, fontWeight: 400 }}>7 días</span>}
             />
           </Card>
         </Col>
@@ -158,7 +173,7 @@ export default function DashboardClient({
               value={stats.clientesActivos}
               prefix={<TeamOutlined style={{ color: '#722ed1' }} />}
               valueStyle={{ fontSize: 20 }}
-              suffix={<span style={{ fontSize: 12, color: '#8c8c8c', fontWeight: 400 }}>30 días</span>}
+              suffix={<span style={{ fontSize: 12, color: C.textMuted, fontWeight: 400 }}>30 días</span>}
             />
           </Card>
         </Col>
@@ -177,23 +192,23 @@ export default function DashboardClient({
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #f59e0b' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorWarning}` }}>
             <Statistic
               title="Citas pendientes"
               value={stats.citasPendientes}
-              prefix={<ClockCircleOutlined style={{ color: '#f59e0b' }} />}
+              prefix={<ClockCircleOutlined style={{ color: C.colorWarning }} />}
               valueStyle={{ fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #10b981' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorSuccess}` }}>
             <Statistic
               title="Ingresos POS hoy"
               value={stats.ingresosPosHoy}
               precision={2}
-              prefix={<DollarOutlined style={{ color: '#10b981' }} />}
-              valueStyle={{ color: '#10b981', fontSize: 20 }}
+              prefix={<DollarOutlined style={{ color: C.colorSuccess }} />}
+              valueStyle={{ color: C.colorSuccess, fontSize: 20 }}
             />
           </Card>
         </Col>
@@ -221,7 +236,7 @@ export default function DashboardClient({
                   data={stats.ventasSemana}
                   margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
                   <XAxis
                     dataKey="day"
                     tick={{ fontSize: 11 }}
@@ -234,11 +249,11 @@ export default function DashboardClient({
                     tickLine={false}
                     tickFormatter={(v: number) => `$${v}`}
                   />
-                  <ReTooltip content={<CustomTooltip />} cursor={{ fill: '#f0fdf9' }} />
+                  <ReTooltip content={<CustomTooltip />} cursor={{ fill: C.bgPrimaryLow }} />
                   <Bar
                     dataKey="total"
                     name="Ventas $"
-                    fill="#0d9488"
+                    fill={primary}
                     radius={[4, 4, 0, 0]}
                     maxBarSize={44}
                   />
@@ -247,7 +262,7 @@ export default function DashboardClient({
             ) : (
               <div style={{
                 height: 230, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', color: '#bfbfbf',
+                alignItems: 'center', justifyContent: 'center', color: C.textDisabled,
               }}>
                 <ShoppingCartOutlined style={{ fontSize: 40, marginBottom: 12 }} />
                 <Text type="secondary">Sin ventas POS registradas esta semana</Text>
@@ -280,7 +295,7 @@ export default function DashboardClient({
                     }}
                   >
                     <span style={{ flex: 1 }}>{link.label}</span>
-                    <RightOutlined style={{ fontSize: 10, color: '#bfbfbf' }} />
+                    <RightOutlined style={{ fontSize: 10, color: C.textDisabled }} />
                   </Button>
                 </Link>
               ))}

@@ -14,8 +14,9 @@ import {
   Statistic, Tag, Select, Modal, Input,
   Typography, Tabs, Drawer, Space,
   DatePicker, Badge, Empty,
-  Divider, ColorPicker,
+  Divider, ColorPicker, theme,
 } from 'antd';
+import { useBarberTheme } from '@/context/ThemeContext';
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
@@ -108,6 +109,22 @@ export default function GastosClient({
   mesFiltro,
   anioFiltro,
 }: Props) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    colorSuccess:  token.colorSuccess,
+    colorError:    token.colorError,
+    colorWarning:  token.colorWarning,
+  }
   const [gastos,     setGastos]     = useState<Gasto[]>(initialGastos);
   const [categorias, setCategorias] = useState<Categoria[]>(initialCategorias);
   const [stats,      setStats]      = useState<Stats>(initialStats);
@@ -392,7 +409,7 @@ export default function GastosClient({
       width:  110,
       align:  'right',
       render: (_, r) => (
-        <Text strong style={{ color: '#ef4444', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
+        <Text strong style={{ color: C.colorError, fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
           {formatMoney(r.monto)}
         </Text>
       ),
@@ -436,35 +453,35 @@ export default function GastosClient({
       {/* ── KPIs fila 1 ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #f59e0b' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorWarning}` }}>
             <Statistic
               title="Gastos hoy"
               value={stats.totalHoy}
               precision={2}
-              prefix={<DollarOutlined style={{ color: '#f59e0b' }} />}
-              valueStyle={{ color: '#f59e0b', fontSize: 20 }}
+              prefix={<DollarOutlined style={{ color: C.colorWarning }} />}
+              valueStyle={{ color: C.colorWarning, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #ef4444' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.colorError}` }}>
             <Statistic
               title="Gastos este mes"
               value={stats.totalMes}
               precision={2}
-              prefix={<CalendarOutlined style={{ color: '#ef4444' }} />}
-              valueStyle={{ color: '#ef4444', fontSize: 20 }}
+              prefix={<CalendarOutlined style={{ color: C.colorError }} />}
+              valueStyle={{ color: C.colorError, fontSize: 20 }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card size="small" style={{ borderTop: '3px solid #6b7280' }}>
+          <Card size="small" style={{ borderTop: `3px solid ${C.textDisabled}` }}>
             <Statistic
               title="Gastos este año"
               value={stats.totalAnio}
               precision={2}
-              prefix={<DollarOutlined style={{ color: '#6b7280' }} />}
-              valueStyle={{ color: '#6b7280', fontSize: 20 }}
+              prefix={<DollarOutlined style={{ color: C.textDisabled }} />}
+              valueStyle={{ color: C.textDisabled, fontSize: 20 }}
             />
           </Card>
         </Col>
@@ -486,7 +503,7 @@ export default function GastosClient({
                 value={stats.categoriaTopMes.total}
                 precision={2}
                 suffix={
-                  <span style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 4 }}>
+                  <span style={{ fontSize: 12, color: C.textMuted, marginLeft: 4 }}>
                     {stats.categoriaTopMes.nombre}
                   </span>
                 }
@@ -511,13 +528,13 @@ export default function GastosClient({
                     background: r.color, flexShrink: 0,
                   }} />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 11, color: '#8c8c8c', lineHeight: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: 11, color: C.textMuted, lineHeight: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {r.nombre}
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 14, color: r.color }}>
                       {formatMoney(r.total)}
                     </div>
-                    <div style={{ fontSize: 10, color: '#bfbfbf' }}>
+                    <div style={{ fontSize: 10, color: C.textDisabled }}>
                       {r.count} {r.count === 1 ? 'gasto' : 'gastos'}
                     </div>
                   </div>
@@ -534,7 +551,7 @@ export default function GastosClient({
         <Row gutter={[8, 8]} align="middle" style={{ marginBottom: 12 }}>
           <Col flex="1">
             <Input
-              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              prefix={<SearchOutlined style={{ color: C.textDisabled }} />}
               placeholder="Buscar descripción, categoría o notas..."
               allowClear
               value={search}
@@ -580,7 +597,7 @@ export default function GastosClient({
         {filtered.length > 0 && (
           <div style={{ textAlign: 'right', padding: '0 0 8px' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>Total filtrado: </Text>
-            <Text strong style={{ color: '#ef4444' }}>{formatMoney(totalFiltrado)}</Text>
+            <Text strong style={{ color: C.colorError }}>{formatMoney(totalFiltrado)}</Text>
           </div>
         )}
 
@@ -601,7 +618,7 @@ export default function GastosClient({
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                 description={
-                  <span style={{ color: '#8c8c8c' }}>
+                  <span style={{ color: C.textMuted }}>
                     No hay gastos registrados
                   </span>
                 }
@@ -621,7 +638,7 @@ export default function GastosClient({
         onCancel={() => setModalOpen(false)}
         title={
           <Space>
-            <DollarOutlined style={{ color: '#ef4444' }} />
+            <DollarOutlined style={{ color: C.colorError }} />
             <span>{editGasto ? 'Editar gasto' : 'Nuevo gasto'}</span>
           </Space>
         }
@@ -708,7 +725,7 @@ export default function GastosClient({
           </FormField>
 
           {formError && (
-            <p style={{ color: '#ff4d4f', fontSize: 13, margin: 0 }}>{formError}</p>
+            <p style={{ color: C.colorError, fontSize: 13, margin: 0 }}>{formError}</p>
           )}
         </div>
 
@@ -718,7 +735,7 @@ export default function GastosClient({
             type="primary"
             loading={saving}
             onClick={handleSaveGasto}
-            style={{ background: '#ef4444', borderColor: '#ef4444' }}
+            danger
           >
             {saving ? 'Guardando...' : editGasto ? 'Guardar cambios' : 'Registrar gasto'}
           </Button>
@@ -729,7 +746,7 @@ export default function GastosClient({
       <Drawer
         title={
           <Space>
-            <TagOutlined style={{ color: '#0d9488' }} />
+            <TagOutlined style={{ color: primary }} />
             <span>Gestionar categorías</span>
           </Space>
         }
@@ -739,7 +756,7 @@ export default function GastosClient({
       >
         {/* Lista de categorías existentes */}
         <div style={{ marginBottom: 24 }}>
-          <Text strong style={{ fontSize: 13, color: '#555' }}>
+          <Text strong style={{ fontSize: 13, color: C.textPrimary }}>
             Categorías activas ({categorias.length})
           </Text>
           <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -752,8 +769,8 @@ export default function GastosClient({
                 style={{
                   display: 'flex', alignItems: 'center',
                   padding: '8px 12px', borderRadius: 8,
-                  border: '1px solid #f0f0f0',
-                  background: editCat?.id === c.id ? '#f0fdfa' : '#fafafa',
+                  border: `1px solid ${C.border}`,
+                  background: editCat?.id === c.id ? C.bgPrimaryLow : C.bgSubtle,
                 }}
               >
                 <span style={{
@@ -763,7 +780,7 @@ export default function GastosClient({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500, fontSize: 13 }}>{c.nombre}</div>
                   {c.descripcion && (
-                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>{c.descripcion}</div>
+                    <div style={{ fontSize: 11, color: C.textMuted }}>{c.descripcion}</div>
                   )}
                   <Badge count={c.countGastos} style={{ backgroundColor: c.color, fontSize: 10 }} />
                 </div>
@@ -820,7 +837,7 @@ export default function GastosClient({
                     onClick={() => setCatColor(col)}
                     style={{
                       width: 24, height: 24, borderRadius: '50%',
-                      background: col, border: catColor === col ? '3px solid #333' : '2px solid transparent',
+                      background: col, border: catColor === col ? `3px solid ${C.textPrimary}` : '2px solid transparent',
                       cursor: 'pointer', padding: 0,
                     }}
                   />
@@ -843,7 +860,7 @@ export default function GastosClient({
             </FormField>
 
             {catError && (
-              <p style={{ color: '#ff4d4f', fontSize: 12, margin: 0 }}>{catError}</p>
+              <p style={{ color: C.colorError, fontSize: 12, margin: 0 }}>{catError}</p>
             )}
 
             <div style={{ display: 'flex', gap: 8 }}>

@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import {
   Card, Table, Tag, Button, Tabs, Modal, Input, Row, Col, Statistic,
-  Descriptions, Tooltip, Space, Select
+  Descriptions, Tooltip, Space, Select, theme,
 } from 'antd'
 import { FileTextOutlined, StopOutlined, PrinterOutlined, FileDoneOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { toast } from 'sonner'
 import { abrirFacturaCompleta, abrirTicket, type DTEJsonViewer } from '@/lib/dte-viewer'
+import { useBarberTheme } from '@/context/ThemeContext'
 
 interface Venta {
   id: number
@@ -59,6 +60,25 @@ export default function PosDocumentosClient({
   ventas: Venta[]
   notasCredito: NotaCredito[]
 }) {
+  const { theme: barberTheme } = useBarberTheme()
+  const primary = barberTheme.colorPrimary
+  const { token } = theme.useToken()
+  const C = {
+    bgPage:        'hsl(var(--bg-page))',
+    bgSurface:     'hsl(var(--bg-surface))',
+    bgSubtle:      'hsl(var(--bg-subtle))',
+    bgMuted:       'hsl(var(--bg-muted))',
+    bgPrimaryLow:  `${primary}18`,
+    textPrimary:   'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted:     'hsl(var(--text-muted))',
+    textDisabled:  'hsl(var(--text-disabled))',
+    border:        'hsl(var(--border-default))',
+    borderStrong:  'hsl(var(--border-strong))',
+    colorWarning:  token.colorWarning,
+    colorError:    token.colorError,
+  }
+
   const [ventas, setVentas] = useState<Venta[]>(ventasProp)
   const [nc] = useState<NotaCredito[]>(ncProp)
   const [search, setSearch] = useState('')
@@ -191,7 +211,7 @@ export default function PosDocumentosClient({
     {
       title: 'Total',
       dataIndex: 'total',
-      render: (v: number) => <b style={{ color: '#0d9488' }}>{fmt(v)}</b>,
+      render: (v: number) => <b style={{ color: primary }}>{fmt(v)}</b>,
       align: 'right' as const,
       width: 90,
     },
@@ -260,7 +280,7 @@ export default function PosDocumentosClient({
       render: (v: NotaCredito['ventaOriginal']) => v ? `#${v.numero}` : '—',
     },
     { title: 'Motivo', dataIndex: 'motivo' },
-    { title: 'Total NC', dataIndex: 'total', render: (v: number) => <b style={{ color: '#fa8c16' }}>{fmt(v)}</b> },
+    { title: 'Total NC', dataIndex: 'total', render: (v: number) => <b style={{ color: C.colorWarning }}>{fmt(v)}</b> },
     { title: 'Estado', dataIndex: 'estado', render: (v: string) => <Tag>{v}</Tag> },
     {
       title: 'Fecha', dataIndex: 'createdAt',
@@ -282,7 +302,7 @@ export default function PosDocumentosClient({
           <Col xs={12} sm={12} md={8} lg={Math.floor(24 / 5)} key={i}>
             <Card size="small">
               <Statistic title={k.title} value={k.value} prefix={k.prefix} precision={k.precision || 0}
-                valueStyle={{ color: '#0d9488', fontSize: 'clamp(16px, 4vw, 24px)' }} />
+                valueStyle={{ color: primary, fontSize: 'clamp(16px, 4vw, 24px)' }} />
             </Card>
           </Col>
         ))}
@@ -364,14 +384,14 @@ export default function PosDocumentosClient({
 
       {/* Modal anulación */}
       <Modal
-        open={!!anularModal} title={<span><ExclamationCircleOutlined style={{ color: '#ff4d4f' }} /> Anular Venta #{anularModal?.numero}</span>}
+        open={!!anularModal} title={<span><ExclamationCircleOutlined style={{ color: C.colorError }} /> Anular Venta #{anularModal?.numero}</span>}
         onCancel={() => { setAnularModal(null); setMotivoAnular('') }}
         onOk={anular} confirmLoading={loadingAnular}
         okText="Confirmar Anulación" okButtonProps={{ danger: true }}
       >
-        <p style={{ color: '#666' }}>Total: <b>{fmt(anularModal?.total || 0)}</b> · Esta acción no se puede deshacer.</p>
+        <p style={{ color: C.textSecondary }}>Total: <b>{fmt(anularModal?.total || 0)}</b> · Esta acción no se puede deshacer.</p>
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Motivo de anulación *</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 4 }}>Motivo de anulación *</div>
           <Input.TextArea rows={3} placeholder="Describe el motivo de la anulación..."
             value={motivoAnular} onChange={e => setMotivoAnular(e.target.value)} />
         </div>
@@ -383,13 +403,13 @@ export default function PosDocumentosClient({
         onCancel={() => { setNcModal(null); setMotivoNC('') }}
         onOk={emitirNC} confirmLoading={loadingNC}
         okText="Emitir Nota de Crédito"
-        okButtonProps={{ style: { background: '#0d9488', borderColor: '#0d9488' } }}
+        okButtonProps={{ style: { background: primary, borderColor: primary } }}
       >
-        <p style={{ color: '#666' }}>
+        <p style={{ color: C.textSecondary }}>
           Se generará una NC por <b>{fmt(ncModal?.total || 0)}</b> referenciando la venta original.
         </p>
         <div style={{ marginTop: 12 }}>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>Motivo *</div>
+          <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 4 }}>Motivo *</div>
           <Input.TextArea rows={3} placeholder="Motivo de la nota de crédito..."
             value={motivoNC} onChange={e => setMotivoNC(e.target.value)} />
         </div>
