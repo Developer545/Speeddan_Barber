@@ -6,13 +6,20 @@
 import { getCurrentUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { listServices } from '@/modules/services/services.service';
+import { prisma } from '@/lib/prisma';
 import ServicesClient from './ServicesClient';
 
 export default async function ServicesPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const services = await listServices(user.tenantId);
+  const [services, categorias] = await Promise.all([
+    listServices(user.tenantId),
+    prisma.barberCategoriaServicio.findMany({
+      where: { tenantId: user.tenantId },
+      orderBy: { nombre: 'asc' },
+    }),
+  ]);
 
   return (
     <div>
@@ -24,7 +31,7 @@ export default async function ServicesPage() {
           Gestiona los servicios que ofrece tu barbería
         </p>
       </div>
-      <ServicesClient initialServices={services} />
+      <ServicesClient initialServices={services} initialCategorias={categorias} />
     </div>
   );
 }

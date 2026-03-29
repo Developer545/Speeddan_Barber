@@ -1,7 +1,7 @@
 'use client';
 
 // ══════════════════════════════════════════════════════════
-// SERVICIOS — CRUD COMPLETO (patrón Speeddansys ERP)
+// SERVICIOS — CRUD + CRUD CATEGORÍAS (patrón Speeddansys ERP)
 // ══════════════════════════════════════════════════════════
 
 import { useState } from 'react';
@@ -9,16 +9,18 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import {
   Table, Card, Input, Button, Space, Row, Col,
-  Statistic, Tag, Tooltip, Popconfirm, Typography, Select as AntSelect,
+  Statistic, Tag, Tooltip, Popconfirm, Typography,
+  Select as AntSelect, Drawer, theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   SearchOutlined, PlusOutlined, ReloadOutlined,
   ScissorOutlined, EditOutlined, DeleteOutlined,
   CheckCircleOutlined, TagOutlined, DollarOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
+import { useBarberTheme } from '@/context/ThemeContext';
 
-// Componentes internos del formulario (react-hook-form)
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button as SdButton }  from '@/components/ui/button';
 import { Input as SdInput }    from '@/components/ui/input';
@@ -28,6 +30,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 const { Title, Text } = Typography;
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
+
+type Categoria = { id: number; nombre: string; color: string; activo: boolean };
 
 type Service = {
   id: number; name: string; description: string | null;
@@ -39,27 +43,65 @@ type FormValues = {
   duration: string; category: string; active: boolean;
 };
 
-const CATEGORIES: Record<string, string> = {
-  cabello: 'Cabello', barba: 'Barba', combo: 'Combo', tratamiento: 'Tratamiento',
-};
-
-const CAT_COLORS: Record<string, string> = {
-  cabello: 'blue', barba: 'purple', combo: 'cyan', tratamiento: 'green',
-};
+// Colores disponibles para categorías (Ant Design Tag colors)
+const COLOR_OPTIONS = [
+  { value: 'blue',     label: 'Azul' },
+  { value: 'purple',   label: 'Morado' },
+  { value: 'cyan',     label: 'Cyan' },
+  { value: 'green',    label: 'Verde' },
+  { value: 'orange',   label: 'Naranja' },
+  { value: 'red',      label: 'Rojo' },
+  { value: 'gold',     label: 'Dorado' },
+  { value: 'geekblue', label: 'Azul oscuro' },
+  { value: 'magenta',  label: 'Magenta' },
+  { value: 'volcano',  label: 'Volcán' },
+  { value: 'lime',     label: 'Lima' },
+];
 
 // ── Componente ─────────────────────────────────────────────────────────────
 
-export default function ServicesClient({ initialServices }: { initialServices: Service[] }) {
-  const [services, setServices] = useState<Service[]>(initialServices);
-  const [open,     setOpen]     = useState(false);
-  const [editing,  setEditing]  = useState<Service | null>(null);
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState('');
-  const [search,   setSearch]   = useState('');
+export default function ServicesClient({
+  initialServices,
+  initialCategorias,
+}: {
+  initialServices: Service[];
+  initialCategorias: Categoria[];
+}) {
+  const { theme: barberTheme } = useBarberTheme();
+  const primary = barberTheme.colorPrimary;
+  const { token } = theme.useToken();
+  const C = {
+    textMuted:    'hsl(var(--text-muted))',
+    textDisabled: 'hsl(var(--text-disabled))',
+    colorSuccess: token.colorSuccess,
+    colorWarning: token.colorWarning,
+  };
+
+  // ── Estado servicios ───────────────────────────────────
+  const [services,  setServices]  = useState<Service[]>(initialServices);
+  const [open,      setOpen]      = useState(false);
+  const [editing,   setEditing]   = useState<Service | null>(null);
+  const [saving,    setSaving]    = useState(false);
+  const [error,     setError]     = useState('');
+  const [search,    setSearch]    = useState('');
   const [catFiltro, setCatFiltro] = useState<string | undefined>();
 
+  // ── Estado categorías ──────────────────────────────────
+  const [categorias,     setCategorias]     = useState<Categoria[]>(initialCategorias);
+  const [drawerCat,      setDrawerCat]      = useState(false);
+  const [catNombre,      setCatNombre]      = useState('');
+  const [catColor,       setCatColor]       = useState('blue');
+  const [catSaving,      setCatSaving]      = useState(false);
+  const [catError,       setCatError]       = useState('');
+  const [editingCat,     setEditingCat]     = useState<Categoria | null>(null);
+  const [catModalOpen,   setCatModalOpen]   = useState(false);
+  const [catEditNombre,  setCatEditNombre]  = useState('');
+  const [catEditColor,   setCatEditColor]   = useState('blue');
+  const [catEditSaving,  setCatEditSaving]  = useState(false);
+  const [catEditError,   setCatEditError]   = useState('');
+
   const { register, handleSubmit, reset, setValue, watch } = useForm<FormValues>();
-  const selectedCategory = watch('category') ?? '';
+  const selectedCategory = (watch('category') ?? '') as string;
   const activeVal        = watch('active');
 
   // Filtro cliente-side
@@ -70,27 +112,27 @@ export default function ServicesClient({ initialServices }: { initialServices: S
     return matchSearch && matchCat;
   });
 
-  // ── Abrir modal crear ──────────────────────────────────
+  // ── Servicios: abrir modal crear ───────────────────────
   const handleNuevo = () => {
     setEditing(null);
-    reset({ name: '', description: '', price: '', duration: '', category: 'cabello', active: true });
+    reset({ name: '', description: '', price: '', duration: '', category: '', active: true });
     setError('');
     setOpen(true);
   };
 
-  // ── Abrir modal editar ─────────────────────────────────
+  // ── Servicios: abrir modal editar ──────────────────────
   const handleEditar = (s: Service) => {
     setEditing(s);
     reset({
       name: s.name, description: s.description ?? '',
       price: String(s.price), duration: String(s.duration),
-      category: s.category ?? 'cabello', active: s.active,
+      category: s.category ?? '', active: s.active,
     });
     setError('');
     setOpen(true);
   };
 
-  // ── Guardar (crear o editar) ───────────────────────────
+  // ── Servicios: guardar ─────────────────────────────────
   async function onSubmit(values: FormValues) {
     setSaving(true); setError('');
     try {
@@ -102,17 +144,11 @@ export default function ServicesClient({ initialServices }: { initialServices: S
         category:    values.category || undefined,
         active:      values.active,
       };
-      const url = editing ? `/api/services/${editing.id}` : '/api/services';
-      const res = await fetch(url, {
-        method:  editing ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        const msg = json.error?.message ?? 'Error al guardar';
-        setError(msg); toast.error(msg); return;
-      }
+      const url    = editing ? `/api/services/${editing.id}` : '/api/services';
+      const method = editing ? 'PATCH' : 'POST';
+      const res    = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json   = await res.json();
+      if (!res.ok) { const msg = json.error?.message ?? 'Error al guardar'; setError(msg); toast.error(msg); return; }
       if (editing) {
         setServices(prev => prev.map(s => s.id === editing.id ? json.data : s));
         toast.success(`Servicio "${values.name}" actualizado`);
@@ -121,21 +157,67 @@ export default function ServicesClient({ initialServices }: { initialServices: S
         toast.success(`Servicio "${values.name}" creado`);
       }
       setOpen(false);
-    } catch {
-      setError('Error de red'); toast.error('Error de red');
-    } finally { setSaving(false); }
+    } catch { setError('Error de red'); toast.error('Error de red'); }
+    finally { setSaving(false); }
   }
 
-  // ── Eliminar (Popconfirm de antd) ──────────────────────
+  // ── Servicios: eliminar ────────────────────────────────
   async function handleEliminar(s: Service) {
     const res = await fetch(`/api/services/${s.id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setServices(prev => prev.filter(x => x.id !== s.id));
-      toast.success(`"${s.name}" eliminado`);
-    } else { toast.error('No se pudo eliminar'); }
+    if (res.ok) { setServices(prev => prev.filter(x => x.id !== s.id)); toast.success(`"${s.name}" eliminado`); }
+    else toast.error('No se pudo eliminar');
   }
 
-  // ── Columnas de la tabla (patrón Speeddansys) ──────────
+  // ── Categorías: crear ──────────────────────────────────
+  async function handleCrearCategoria() {
+    if (!catNombre.trim()) { setCatError('El nombre es requerido'); return; }
+    setCatSaving(true); setCatError('');
+    try {
+      const res  = await fetch('/api/services/categorias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: catNombre.trim(), color: catColor }) });
+      const json = await res.json();
+      if (!res.ok) { setCatError(json.error?.message ?? 'Error al crear'); return; }
+      setCategorias(prev => [...prev, json.data].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setCatNombre(''); setCatColor('blue');
+      toast.success(`Categoría "${json.data.nombre}" creada`);
+    } catch { setCatError('Error de red'); }
+    finally { setCatSaving(false); }
+  }
+
+  // ── Categorías: abrir modal editar ─────────────────────
+  function openEditCat(cat: Categoria) {
+    setEditingCat(cat);
+    setCatEditNombre(cat.nombre);
+    setCatEditColor(cat.color);
+    setCatEditError('');
+    setCatModalOpen(true);
+  }
+
+  // ── Categorías: guardar edición ────────────────────────
+  async function handleGuardarCategoria() {
+    if (!catEditNombre.trim()) { setCatEditError('El nombre es requerido'); return; }
+    if (!editingCat) return;
+    setCatEditSaving(true); setCatEditError('');
+    try {
+      const res  = await fetch(`/api/services/categorias/${editingCat.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: catEditNombre.trim(), color: catEditColor }) });
+      const json = await res.json();
+      if (!res.ok) { setCatEditError(json.error?.message ?? 'Error al guardar'); return; }
+      setCategorias(prev => prev.map(c => c.id === editingCat.id ? json.data : c).sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setCatModalOpen(false);
+      toast.success('Categoría actualizada');
+    } catch { setCatEditError('Error de red'); }
+    finally { setCatEditSaving(false); }
+  }
+
+  // ── Categorías: eliminar ───────────────────────────────
+  async function handleEliminarCategoria(cat: Categoria) {
+    const res = await fetch(`/api/services/categorias/${cat.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setCategorias(prev => prev.filter(c => c.id !== cat.id));
+      toast.success(`"${cat.nombre}" eliminada`);
+    } else toast.error('No se pudo eliminar');
+  }
+
+  // ── Columnas servicios ─────────────────────────────────
   const columns: ColumnsType<Service> = [
     {
       title:  'Servicio',
@@ -144,9 +226,7 @@ export default function ServicesClient({ initialServices }: { initialServices: S
         <div style={{ opacity: r.active ? 1 : 0.5 }}>
           <div style={{ fontWeight: 500 }}>{r.name}</div>
           {r.description && (
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {r.description.slice(0, 60)}
-            </Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>{r.description.slice(0, 60)}</Text>
           )}
         </div>
       ),
@@ -155,10 +235,13 @@ export default function ServicesClient({ initialServices }: { initialServices: S
       title:     'Categoría',
       dataIndex: 'category',
       key:       'category',
-      width:     120,
-      render:    (v: string | null) => v
-        ? <Tag color={CAT_COLORS[v] ?? 'default'} style={{ fontSize: 11 }}>{CATEGORIES[v] ?? v}</Tag>
-        : <Text type="secondary">—</Text>,
+      width:     130,
+      render:    (v: string | null) => {
+        const cat = categorias.find(c => c.nombre === v);
+        return v
+          ? <Tag color={cat?.color ?? 'default'} style={{ fontSize: 11 }}>{v}</Tag>
+          : <Text type="secondary">—</Text>;
+      },
     },
     {
       title:     'Precio',
@@ -166,11 +249,7 @@ export default function ServicesClient({ initialServices }: { initialServices: S
       key:       'price',
       width:     100,
       align:     'right',
-      render:    (v: number) => (
-        <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>
-          ${v.toFixed(2)}
-        </Text>
-      ),
+      render:    (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>${v.toFixed(2)}</Text>,
     },
     {
       title:     'Duración',
@@ -184,10 +263,8 @@ export default function ServicesClient({ initialServices }: { initialServices: S
       title:     'Estado',
       dataIndex: 'active',
       key:       'active',
-      width:     100,
-      render:    (v: boolean) => (
-        <Tag color={v ? 'success' : 'default'}>{v ? 'Activo' : 'Inactivo'}</Tag>
-      ),
+      width:     90,
+      render:    (v: boolean) => <Tag color={v ? 'success' : 'default'}>{v ? 'Activo' : 'Inactivo'}</Tag>,
     },
     {
       title:  'Acciones',
@@ -197,19 +274,12 @@ export default function ServicesClient({ initialServices }: { initialServices: S
       render: (_, record) => (
         <Space size={4}>
           <Tooltip title="Editar">
-            <Button
-              size="small"
-              type="primary"
-              ghost
-              icon={<EditOutlined />}
-              onClick={() => handleEditar(record)}
-            />
+            <Button size="small" type="primary" ghost icon={<EditOutlined />} onClick={() => handleEditar(record)} />
           </Tooltip>
           <Popconfirm
             title="¿Eliminar este servicio?"
             description="Esta acción no se puede deshacer."
-            okText="Eliminar"
-            cancelText="Cancelar"
+            okText="Eliminar" cancelText="Cancelar"
             okButtonProps={{ danger: true }}
             onConfirm={() => handleEliminar(record)}
           >
@@ -222,65 +292,81 @@ export default function ServicesClient({ initialServices }: { initialServices: S
     },
   ];
 
+  // ── Columnas categorías (drawer) ───────────────────────
+  const catColumns: ColumnsType<Categoria> = [
+    {
+      title:  'Nombre',
+      key:    'nombre',
+      render: (_, r) => <Tag color={r.color} style={{ fontSize: 12 }}>{r.nombre}</Tag>,
+    },
+    {
+      title:  'Acciones',
+      key:    'actions',
+      width:  80,
+      render: (_, record) => (
+        <Space size={4}>
+          <Tooltip title="Editar">
+            <Button size="small" type="primary" ghost icon={<EditOutlined />} onClick={() => openEditCat(record)} />
+          </Tooltip>
+          <Popconfirm
+            title="¿Eliminar esta categoría?"
+            okText="Eliminar" cancelText="Cancelar"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => handleEliminarCategoria(record)}
+          >
+            <Tooltip title="Eliminar">
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   // ── KPIs ───────────────────────────────────────────────
   const activeCount = services.filter(s => s.active).length;
-  const avgPrice    = services.length
-    ? (services.reduce((a, s) => a + s.price, 0) / services.length).toFixed(2)
-    : '0.00';
-  const catsUsed    = new Set(services.map(s => s.category).filter(Boolean)).size;
+  const avgPrice    = services.length ? (services.reduce((a, s) => a + s.price, 0) / services.length).toFixed(2) : '0.00';
 
   return (
     <>
-      {/* ── Estadísticas rápidas (igual que Speeddansys) ── */}
+      {/* ── KPIs ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic
-              title="Total Servicios"
-              value={services.length}
-              prefix={<ScissorOutlined style={{ color: '#0d9488' }} />}
-            />
+            <Statistic title="Total Servicios" value={services.length} prefix={<ScissorOutlined style={{ color: primary }} />} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic
-              title="Activos"
-              value={activeCount}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-            />
+            <Statistic title="Activos" value={activeCount} prefix={<CheckCircleOutlined style={{ color: C.colorSuccess }} />} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic
-              title="Precio Promedio"
-              value={`$${avgPrice}`}
-              prefix={<DollarOutlined style={{ color: '#f59e0b' }} />}
-            />
+            <Statistic title="Precio Promedio" value={`$${avgPrice}`} prefix={<DollarOutlined style={{ color: C.colorWarning }} />} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic
-              title="Categorías"
-              value={catsUsed}
-              prefix={<TagOutlined style={{ color: '#722ed1' }} />}
-            />
+            <Statistic title="Categorías" value={categorias.length} prefix={<TagOutlined style={{ color: '#722ed1' }} />} />
           </Card>
         </Col>
       </Row>
 
-      {/* ── Tabla principal ───────────────────────────── */}
+      {/* ── Tabla servicios ── */}
       <Card
         title={<Title level={5} style={{ margin: 0 }}>Servicios</Title>}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleNuevo}>
-            Nuevo servicio
-          </Button>
+          <Space>
+            <Button icon={<AppstoreOutlined />} onClick={() => setDrawerCat(true)}>
+              Categorías
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleNuevo}>
+              Nuevo servicio
+            </Button>
+          </Space>
         }
       >
-        {/* Barra de filtros */}
         <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={10} md={8}>
             <Input
@@ -298,7 +384,7 @@ export default function ServicesClient({ initialServices }: { initialServices: S
               style={{ width: '100%' }}
               value={catFiltro}
               onChange={v => setCatFiltro(v)}
-              options={Object.entries(CATEGORIES).map(([k, v]) => ({ value: k, label: v }))}
+              options={categorias.map(c => ({ value: c.nombre, label: c.nombre }))}
             />
           </Col>
           <Col>
@@ -315,19 +401,15 @@ export default function ServicesClient({ initialServices }: { initialServices: S
           size="small"
           scroll={{ x: 600 }}
           pagination={{
-            pageSize:        10,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50'],
-            showTotal:       (t, range) => `${range[0]}–${range[1]} de ${t} servicios`,
+            pageSize: 10, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'],
+            showTotal: (t, range) => `${range[0]}–${range[1]} de ${t} servicios`,
           }}
           locale={{
             emptyText: (
               <div style={{ padding: 40, textAlign: 'center' }}>
-                <ScissorOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
-                <div style={{ marginTop: 8, color: '#8c8c8c' }}>
-                  {search || catFiltro
-                    ? 'Sin resultados. Cambia los filtros.'
-                    : 'No hay servicios aún. Usa "+ Nuevo servicio".'}
+                <ScissorOutlined style={{ fontSize: 32, color: C.textDisabled }} />
+                <div style={{ marginTop: 8, color: C.textMuted }}>
+                  {search || catFiltro ? 'Sin resultados. Cambia los filtros.' : 'No hay servicios aún. Usa "+ Nuevo servicio".'}
                 </div>
               </div>
             ),
@@ -335,7 +417,7 @@ export default function ServicesClient({ initialServices }: { initialServices: S
         />
       </Card>
 
-      {/* ── Modal Crear / Editar ──────────────────────── */}
+      {/* ── Modal Crear / Editar servicio ── */}
       <Dialog open={open} onOpenChange={v => { if (!v) setOpen(false); }}>
         <DialogContent>
           <DialogHeader>
@@ -360,11 +442,11 @@ export default function ServicesClient({ initialServices }: { initialServices: S
               <FormField label="Categoría">
                 <Select value={selectedCategory} onValueChange={v => setValue('category', v as string)}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccionar" />
+                    <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(CATEGORIES).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    {categorias.map(c => (
+                      <SelectItem key={c.id} value={c.nombre}>{c.nombre}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -385,6 +467,105 @@ export default function ServicesClient({ initialServices }: { initialServices: S
               <SdButton type="submit" disabled={saving}>{saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear servicio'}</SdButton>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Drawer Categorías ── */}
+      <Drawer
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TagOutlined style={{ color: primary }} />
+            <span>Categorías de servicios</span>
+          </div>
+        }
+        open={drawerCat}
+        onClose={() => setDrawerCat(false)}
+        width={420}
+      >
+        {/* Formulario crear */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13 }}>Nueva categoría</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <SdInput
+              value={catNombre}
+              onChange={e => setCatNombre(e.target.value)}
+              placeholder="Nombre de la categoría"
+              onKeyDown={e => e.key === 'Enter' && handleCrearCategoria()}
+            />
+            <AntSelect
+              value={catColor}
+              onChange={v => setCatColor(v)}
+              style={{ width: '100%' }}
+              options={COLOR_OPTIONS.map(o => ({
+                value: o.value,
+                label: (
+                  <Space>
+                    <Tag color={o.value} style={{ margin: 0 }}>{o.label}</Tag>
+                  </Space>
+                ),
+              }))}
+            />
+            {catError && <p style={{ color: 'hsl(var(--status-error))', fontSize: 12, margin: 0 }}>{catError}</p>}
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              loading={catSaving}
+              onClick={handleCrearCategoria}
+              block
+            >
+              Agregar categoría
+            </Button>
+          </div>
+        </div>
+
+        {/* Lista de categorías existentes */}
+        <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13 }}>
+          Categorías existentes ({categorias.length})
+        </div>
+        <Table
+          dataSource={categorias}
+          columns={catColumns}
+          rowKey="id"
+          size="small"
+          pagination={false}
+          locale={{ emptyText: <Text type="secondary">Sin categorías aún</Text> }}
+        />
+      </Drawer>
+
+      {/* ── Modal Editar categoría ── */}
+      <Dialog open={catModalOpen} onOpenChange={v => { if (!v) setCatModalOpen(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar categoría</DialogTitle>
+          </DialogHeader>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0' }}>
+            <FormField label="Nombre *">
+              <SdInput
+                value={catEditNombre}
+                onChange={e => setCatEditNombre(e.target.value)}
+                placeholder="Nombre de la categoría"
+                autoFocus
+              />
+            </FormField>
+            <FormField label="Color">
+              <AntSelect
+                value={catEditColor}
+                onChange={v => setCatEditColor(v)}
+                style={{ width: '100%' }}
+                options={COLOR_OPTIONS.map(o => ({
+                  value: o.value,
+                  label: <Space><Tag color={o.value} style={{ margin: 0 }}>{o.label}</Tag></Space>,
+                }))}
+              />
+            </FormField>
+            {catEditError && <p style={{ color: 'hsl(var(--status-error))', fontSize: 13, margin: 0 }}>{catEditError}</p>}
+          </div>
+          <DialogFooter>
+            <SdButton variant="outline" onClick={() => setCatModalOpen(false)}>Cancelar</SdButton>
+            <SdButton onClick={handleGuardarCategoria} disabled={catEditSaving}>
+              {catEditSaving ? 'Guardando...' : 'Guardar cambios'}
+            </SdButton>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

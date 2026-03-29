@@ -100,6 +100,7 @@ model BarberTenant {
   productos          BarberProducto[]
   compras            BarberCompra[]
   categoriaGastos    BarberCategoriaGasto[]
+  categoriaServicios BarberCategoriaServicio[]
   gastos             BarberGasto[]
 
   // Módulo planilla
@@ -481,6 +482,21 @@ model BarberCategoriaGasto {
   @@unique([tenantId, nombre])
   @@index([tenantId])
   @@map("barber_categorias_gasto")
+}
+
+model BarberCategoriaServicio {
+  id        Int          @id @default(autoincrement())
+  tenantId  Int
+  tenant    BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nombre    String
+  color     String       @default("blue")
+  activo    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([tenantId, nombre])
+  @@index([tenantId])
+  @@map("barber_categorias_servicio")
 }
 
 model BarberGasto {
