@@ -110,10 +110,12 @@ export async function getStats(tenantId: number) {
   const todayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   const since30    = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const since7     = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000);
+  const inicioSeisM = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
   const [
     citasHoy, citasPendientes, ingresosAppt, clientesActivos, citasSemana,
     ventasPosHoy, ingresosPosHoyAgg, ventasSemana, ventasMesAgg, clientesPosAgg,
+    ventasMensuales, gastosMensuales, detallesTop,
   ] = await Promise.all([
     repo.countTodayAppointments(tenantId, todayStart, todayEnd),
     repo.countPendingAppointments(tenantId),
@@ -128,9 +130,9 @@ export async function getStats(tenantId: number) {
       where: { tenantId, estado: 'ACTIVA', createdAt: { gte: todayStart, lt: todayEnd } },
       _sum: { total: true },
     }),
-    // POS: últimos 7 días (para gráfica)
+    // POS: últimos 7 días (para gráfica de barras)
     getVentasPosSemana(tenantId),
-    // POS: últimos 30 días (para ticket promedio)
+    // POS: últimos 7 días (para ticket promedio)
     prisma.barberVenta.aggregate({
       where: { tenantId, estado: 'ACTIVA', createdAt: { gte: since7 } },
       _sum:   { total: true },
@@ -142,6 +144,24 @@ export async function getStats(tenantId: number) {
       select: { clienteId: true },
       distinct: ['clienteId'],
     }),
+    // GRÁFICA: ingresos mensuales (ventas POS últimos 6 meses)
+    prisma.barberVenta.findMany({
+      where: { tenantId, estado: 'ACTIVA', createdAt: { gte: inicioSeisM } },
+      select: { total: true, createdAt: true },
+    }),
+    // GRÁFICA: gastos mensuales últimos 6 meses
+    prisma.barberGasto.findMany({
+      where: { tenantId, fecha: { gte: inicioSeisM } },
+      select: { monto: true, fecha: true },
+    }),
+    // GRÁFICA: top servicios por ingreso (últimos 30 días)
+    prisma.barberDetalleVenta.findMany({
+      where: {
+        servicioId: { not: null },
+        venta: { tenantId, estado: 'ACTIVA', createdAt: { gte: since30 } },
+      },
+      select: { descripcion: true, subtotal: true, cantidad: true },
+    }),
   ]);
 
   const ingresosPosHoy = ingresosPosHoyAgg._sum.total?.toNumber() ?? 0;
@@ -151,6 +171,46 @@ export async function getStats(tenantId: number) {
   const ticketPromedio = ventasSemanaCount > 0
     ? parseFloat((ventasSemanaTotal / ventasSemanaCount).toFixed(2))
     : 0;
+
+  // ── Ingresos vs Gastos últimos 6 meses ─────────────────
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const mapaM = new Map<string, { ingresos: number; gastos: number }>();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const k = `${MESES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+    mapaM.set(k, { ingresos: 0, gastos: 0 });
+  }
+  for (const v of ventasMensuales) {
+    const d = v.createdAt;
+    const k = `${MESES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+    const entry = mapaM.get(k);
+    if (entry) entry.ingresos += Number(v.total);
+  }
+  for (const g of gastosMensuales) {
+    const d = g.fecha;
+    const k = `${MESES[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+    const entry = mapaM.get(k);
+    if (entry) entry.gastos += Number(g.monto);
+  }
+  const ingresosVsGastos = Array.from(mapaM.entries()).map(([mes, v]) => ({
+    mes,
+    ingresos: parseFloat(v.ingresos.toFixed(2)),
+    gastos:   parseFloat(v.gastos.toFixed(2)),
+    utilidad: parseFloat((v.ingresos - v.gastos).toFixed(2)),
+  }));
+
+  // ── Top servicios por ingreso (últimos 30 días) ─────────
+  const mapaServ = new Map<string, { total: number; cantidad: number }>();
+  for (const d of detallesTop) {
+    const entry = mapaServ.get(d.descripcion) ?? { total: 0, cantidad: 0 };
+    entry.total += Number(d.subtotal);
+    entry.cantidad += d.cantidad;
+    mapaServ.set(d.descripcion, entry);
+  }
+  const topServicios = Array.from(mapaServ.entries())
+    .map(([nombre, v]) => ({ nombre, total: parseFloat(v.total.toFixed(2)), cantidad: v.cantidad }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 6);
 
   return {
     citasHoy,
@@ -163,6 +223,9 @@ export async function getStats(tenantId: number) {
     ingresosPosHoy: parseFloat(ingresosPosHoy.toFixed(2)),
     ventasSemana,
     ticketPromedio,
+    // Gráficas nuevas
+    ingresosVsGastos,
+    topServicios,
   };
 }
 
