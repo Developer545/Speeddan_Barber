@@ -120,6 +120,7 @@ export default function PosClient({
   const [barberoActivo, setBarberoActivo] = useState<{ id: number; nombre: string } | null>(null)
   const [categoriaActiva, setCategoriaActiva] = useState<string>('todos')
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
+  const [busqueda, setBusqueda] = useState('')
 
   // ── Cargar datos ────────────────────────────────────────────────────────────
 
@@ -223,6 +224,12 @@ export default function PosClient({
 
   const selectProductoRapido = (p: Producto) => {
     if (p.stock <= 0) return toast.error(`Sin stock: ${p.nombre}`)
+    // Si ya existe una línea para este producto, incrementar cantidad
+    const existente = lineas.find(l => l.productoId === p.id)
+    if (existente) {
+      updateLinea(existente.key, 'cantidad', existente.cantidad + 1)
+      return
+    }
     setLineas(prev => [...prev, {
       key: Date.now().toString(),
       barberoId: null, barberoNombre: '',
@@ -449,7 +456,18 @@ export default function PosClient({
                 </div>
               </div>
 
+              {/* Buscador */}
+              <Input
+                size="small"
+                placeholder="Buscar servicio o producto..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                allowClear
+                style={{ marginBottom: 8 }}
+              />
+
               {(() => {
+                const q = busqueda.trim().toLowerCase()
                 const esProductosTab = categoriaActiva === '__productos__'
                 const cats = ['todos', ...Array.from(new Set(serviciosProp.map(s => s.category || 'otro'))).sort(), '__productos__']
                 const labels: Record<string, string> = {
@@ -457,35 +475,47 @@ export default function PosClient({
                   combo: '⭐ Combos', tratamiento: '💆 Tratamientos', otro: '📦 Otros',
                   __productos__: '📦 Productos',
                 }
-                const serviciosFiltrados = esProductosTab
-                  ? []
-                  : categoriaActiva === 'todos' ? serviciosProp : serviciosProp.filter(s => (s.category || 'otro') === categoriaActiva)
+                // Con búsqueda activa: mostrar todo (servicios + productos) sin importar tab
+                const serviciosFiltrados = q
+                  ? serviciosProp.filter(s => s.name.toLowerCase().includes(q))
+                  : esProductosTab
+                    ? []
+                    : categoriaActiva === 'todos' ? serviciosProp : serviciosProp.filter(s => (s.category || 'otro') === categoriaActiva)
+
+                const productosFiltrados = q
+                  ? productosProp.filter(p => p.nombre.toLowerCase().includes(q))
+                  : esProductosTab ? productosProp : []
+
+                // En búsqueda activa mostramos ambos grupos
+                const mostrarProductos = esProductosTab || !!q
+                const mostrarServicios = !esProductosTab || !!q
 
                 return (
                   <>
-                    {/* Tabs */}
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-                      {cats.map(cat => {
-                        const isProductos = cat === '__productos__'
-                        const count = isProductos
-                          ? productosProp.length
-                          : cat === 'todos' ? serviciosProp.length : serviciosProp.filter(s => (s.category || 'otro') === cat).length
-                        const activo = categoriaActiva === cat
-                        return (
-                          <button key={cat} onClick={() => setCategoriaActiva(cat)} style={{
-                            padding: '3px 10px', borderRadius: 12, fontSize: 12, cursor: 'pointer',
-                            border: activo ? `2px solid ${isProductos ? '#52c41a' : primary}` : `1.5px solid ${C.border}`,
-                            background: activo ? (isProductos ? '#52c41a' : primary) : C.bgSurface,
-                            color: activo ? '#fff' : C.textSecondary,
-                            fontWeight: activo ? 600 : 400,
-                            transition: 'all 0.15s',
-                          }}>
-                            {labels[cat] || cat}
-                            <span style={{ marginLeft: 4, opacity: 0.7, fontSize: 10 }}>({count})</span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {/* Tabs — ocultos mientras hay búsqueda activa */}
+                    {!q && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {cats.map(cat => {
+                          const count = cat === '__productos__'
+                            ? productosProp.length
+                            : cat === 'todos' ? serviciosProp.length : serviciosProp.filter(s => (s.category || 'otro') === cat).length
+                          const activo = categoriaActiva === cat
+                          return (
+                            <button key={cat} onClick={() => setCategoriaActiva(cat)} style={{
+                              padding: '3px 10px', borderRadius: 12, fontSize: 12, cursor: 'pointer',
+                              border: activo ? `2px solid ${primary}` : `1.5px solid ${C.border}`,
+                              background: activo ? primary : C.bgSurface,
+                              color: activo ? '#fff' : C.textSecondary,
+                              fontWeight: activo ? 600 : 400,
+                              transition: 'all 0.15s',
+                            }}>
+                              {labels[cat] || cat}
+                              <span style={{ marginLeft: 4, opacity: 0.7, fontSize: 10 }}>({count})</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
 
                     {/* ── VISTA TARJETAS ── */}
                     {viewMode === 'cards' && (
@@ -497,8 +527,7 @@ export default function PosClient({
                         overflowY: 'auto',
                         padding: '2px 2px 4px',
                       }}>
-                        {/* Tarjetas de servicios */}
-                        {!esProductosTab && serviciosFiltrados.map(s => (
+                        {mostrarServicios && serviciosFiltrados.map(s => (
                           <button
                             key={s.id}
                             onClick={() => selectServicioRapido(s)}
@@ -519,21 +548,20 @@ export default function PosClient({
                             <div style={{ color: primary, fontWeight: 700 }}>{fmt(s.price)}</div>
                           </button>
                         ))}
-                        {/* Tarjetas de productos */}
-                        {esProductosTab && productosProp.map(p => {
+                        {mostrarProductos && productosFiltrados.map(p => {
                           const sinStock = p.stock <= 0
                           const stockBajo = !sinStock && p.stock <= p.stockMinimo
-                          const stockColor = sinStock ? '#ff4d4f' : stockBajo ? '#faad14' : '#52c41a'
+                          const stockColor = sinStock ? '#ff4d4f' : stockBajo ? '#faad14' : primary
                           return (
                             <button
-                              key={p.id}
+                              key={`p-${p.id}`}
                               onClick={() => selectProductoRapido(p)}
                               disabled={sinStock}
                               title={sinStock ? 'Sin stock' : `Stock: ${p.stock} ${p.unidad}`}
                               style={{
                                 padding: '6px 8px', borderRadius: 8, fontSize: 12,
                                 cursor: sinStock ? 'not-allowed' : 'pointer',
-                                border: `1.5px solid ${sinStock ? '#ff4d4f40' : C.border}`,
+                                border: `1.5px solid ${sinStock ? `${C.borderStrong}60` : C.border}`,
                                 background: sinStock ? C.bgSubtle : C.bgSurface,
                                 color: sinStock ? C.textDisabled : C.textPrimary,
                                 textAlign: 'left', lineHeight: 1.3,
@@ -541,8 +569,8 @@ export default function PosClient({
                                 opacity: sinStock ? 0.5 : 1,
                                 position: 'relative',
                               }}
-                              onMouseEnter={e => { if (!sinStock) (e.currentTarget as HTMLElement).style.borderColor = '#52c41a' }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = sinStock ? '#ff4d4f40' : C.border }}
+                              onMouseEnter={e => { if (!sinStock) (e.currentTarget as HTMLElement).style.borderColor = primary }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = sinStock ? `${C.borderStrong}60` : C.border }}
                             >
                               <div style={{
                                 position: 'absolute', top: 4, right: 4,
@@ -552,10 +580,15 @@ export default function PosClient({
                                 {p.stock} {p.unidad.toLowerCase()}
                               </div>
                               <div style={{ fontWeight: 500, marginBottom: 2, paddingRight: 28 }}>{p.nombre}</div>
-                              <div style={{ color: '#52c41a', fontWeight: 700 }}>{fmt(p.precio)}</div>
+                              <div style={{ color: primary, fontWeight: 700 }}>{fmt(p.precio)}</div>
                             </button>
                           )
                         })}
+                        {mostrarServicios && serviciosFiltrados.length === 0 && mostrarProductos && productosFiltrados.length === 0 && (
+                          <div style={{ gridColumn: '1/-1', textAlign: 'center', color: C.textDisabled, padding: '16px 0' }}>
+                            Sin resultados para "{busqueda}"
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -572,8 +605,7 @@ export default function PosClient({
                             </tr>
                           </thead>
                           <tbody>
-                            {/* Filas de servicios */}
-                            {!esProductosTab && serviciosFiltrados.map(s => (
+                            {mostrarServicios && serviciosFiltrados.map(s => (
                               <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}` }}
                                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = C.bgSubtle}
                                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
@@ -589,30 +621,34 @@ export default function PosClient({
                                 </td>
                               </tr>
                             ))}
-                            {/* Filas de productos */}
-                            {esProductosTab && productosProp.map(p => {
+                            {mostrarProductos && productosFiltrados.map(p => {
                               const sinStock = p.stock <= 0
                               const stockBajo = !sinStock && p.stock <= p.stockMinimo
-                              const stockColor = sinStock ? '#ff4d4f' : stockBajo ? '#faad14' : '#52c41a'
+                              const stockColor = sinStock ? '#ff4d4f' : stockBajo ? '#faad14' : primary
                               return (
-                                <tr key={p.id} style={{ borderBottom: `1px solid ${C.border}`, opacity: sinStock ? 0.5 : 1 }}
+                                <tr key={`p-${p.id}`} style={{ borderBottom: `1px solid ${C.border}`, opacity: sinStock ? 0.5 : 1 }}
                                   onMouseEnter={e => { if (!sinStock) (e.currentTarget as HTMLElement).style.background = C.bgSubtle }}
                                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                                   <td style={{ padding: '4px 6px', color: C.textPrimary }}>{p.nombre}</td>
-                                  <td style={{ padding: '4px 6px', textAlign: 'right', color: '#52c41a', fontWeight: 700 }}>{fmt(p.precio)}</td>
+                                  <td style={{ padding: '4px 6px', textAlign: 'right', color: primary, fontWeight: 700 }}>{fmt(p.precio)}</td>
                                   <td style={{ padding: '4px 6px', textAlign: 'center', color: stockColor, fontWeight: 600, fontSize: 11 }}>
                                     {p.stock} {p.unidad.toLowerCase()}
                                   </td>
                                   <td style={{ padding: '4px 6px', textAlign: 'center' }}>
                                     <button onClick={() => selectProductoRapido(p)} disabled={sinStock} style={{
-                                      width: 24, height: 24, borderRadius: 6, border: `1.5px solid #52c41a`,
-                                      background: '#52c41a18', color: '#52c41a', cursor: sinStock ? 'not-allowed' : 'pointer',
+                                      width: 24, height: 24, borderRadius: 6, border: `1.5px solid ${primary}`,
+                                      background: C.bgPrimaryLow, color: primary, cursor: sinStock ? 'not-allowed' : 'pointer',
                                       fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     }}>+</button>
                                   </td>
                                 </tr>
                               )
                             })}
+                            {mostrarServicios && serviciosFiltrados.length === 0 && mostrarProductos && productosFiltrados.length === 0 && (
+                              <tr><td colSpan={4} style={{ textAlign: 'center', color: C.textDisabled, padding: '16px 0' }}>
+                                Sin resultados para "{busqueda}"
+                              </td></tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -672,9 +708,17 @@ export default function PosClient({
                         )}
                       </Col>
                     </Row>
-                    {/* Fila 2: precio + descuento + total + borrar */}
+                    {/* Fila 2: cantidad + precio + descuento + total + borrar */}
                     <Row gutter={6} align="middle">
                       <Col flex="20px" />
+                      <Col flex="70px">
+                        <InputNumber
+                          size="small" style={{ width: '100%' }}
+                          addonBefore="×"
+                          value={l.cantidad} min={1} precision={0}
+                          onChange={v => updateLinea(l.key, 'cantidad', v || 1)}
+                        />
+                      </Col>
                       <Col flex="1">
                         <InputNumber
                           size="small" prefix="$" style={{ width: '100%' }}
