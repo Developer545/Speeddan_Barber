@@ -21,7 +21,7 @@ import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   HistoryOutlined, WarningOutlined,
   AppstoreOutlined, InboxOutlined, SwapOutlined,
-  SearchOutlined, ShoppingOutlined,
+  SearchOutlined, ShoppingOutlined, TagsOutlined,
 } from '@ant-design/icons';
 import { FormField } from '@/components/shared/FormField';
 import { useBarberTheme } from '@/context/ThemeContext';
@@ -31,88 +31,104 @@ const { Text } = Typography;
 // ── Tipos ───────────────────────────────────────────────────────────────────
 
 type Categoria = {
-  id:     number;
+  id: number;
   nombre: string;
+  color: string;
 };
 
 type Producto = {
-  id:            number;
-  codigo:        string;
-  nombre:        string;
-  descripcion:   string | null;
-  categoriaId:   number | null;
-  categoria:     { id: number; nombre: string } | null;
-  precioVenta:   number;
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion: string | null;
+  categoriaId: number | null;
+  categoria: { id: number; nombre: string } | null;
+  precioVenta: number;
   costoPromedio: number;
-  stockMinimo:   number;
-  stockActual:   number;
-  unidadMedida:  string;
-  activo:        boolean;
-  stockBajo:     boolean;
+  stockMinimo: number;
+  stockActual: number;
+  unidadMedida: string;
+  activo: boolean;
+  stockBajo: boolean;
 };
 
 type KardexItem = {
-  id:             number;
-  tenantId:       number;
-  productoId:     number;
+  id: number;
+  tenantId: number;
+  productoId: number;
   tipoMovimiento: string;
-  referencia:     string;
-  cantidad:       number;
-  costoUnitario:  number;
-  costoTotal:     number;
-  stockAnterior:  number;
-  stockNuevo:     number;
-  notas:          string | null;
-  fecha:          string;
-  producto?:      { id: number; codigo: string; nombre: string; unidadMedida: string } | null;
+  referencia: string;
+  cantidad: number;
+  costoUnitario: number;
+  costoTotal: number;
+  stockAnterior: number;
+  stockNuevo: number;
+  notas: string | null;
+  fecha: string;
+  producto?: { id: number; codigo: string; nombre: string; unidadMedida: string } | null;
 };
 
 type Resumen = {
-  totalProductos:     number;
+  totalProductos: number;
   productosStockBajo: number;
-  valorInventario:    number;
-  totalCategorias:    number;
+  valorInventario: number;
+  totalCategorias: number;
 };
 
 type Props = {
-  initialProductos:   Producto[];
-  initialCategorias:  Categoria[];
-  initialResumen:     Resumen;
-  initialKardex:      KardexItem[];
+  initialProductos: Producto[];
+  initialCategorias: Categoria[];
+  initialResumen: Resumen;
+  initialKardex: KardexItem[];
   initialKardexTotal: number;
 };
 
 // ── Constantes ──────────────────────────────────────────────────────────────
 
+const CATEGORY_COLORS = [
+  { value: 'blue', label: 'Azul' },
+  { value: 'green', label: 'Verde' },
+  { value: 'red', label: 'Rojo' },
+  { value: 'orange', label: 'Naranja' },
+  { value: 'purple', label: 'Morado' },
+  { value: 'cyan', label: 'Cian' },
+  { value: 'magenta', label: 'Magenta' },
+  { value: 'gold', label: 'Dorado' },
+  { value: 'volcano', label: 'Volcán' },
+  { value: 'geekblue', label: 'Azul marino' },
+  { value: 'lime', label: 'Lima' },
+  { value: 'teal', label: 'Teal' },
+];
+
 const TIPO_MOVIMIENTO_COLORS: Record<string, string> = {
-  COMPRA:    'green',
-  ENTRADA:   'blue',
-  SALIDA:    'orange',
-  AJUSTE:    'purple',
+  COMPRA: 'green',
+  ENTRADA: 'blue',
+  SALIDA: 'orange',
+  AJUSTE: 'purple',
   ANULACION: 'red',
 };
 
 const TIPO_MOVIMIENTO_LABELS: Record<string, string> = {
-  COMPRA:    'Compra',
-  ENTRADA:   'Entrada',
-  SALIDA:    'Salida',
-  AJUSTE:    'Ajuste',
+  COMPRA: 'Compra',
+  ENTRADA: 'Entrada',
+  SALIDA: 'Salida',
+  AJUSTE: 'Ajuste',
   ANULACION: 'Anulación',
 };
 
 const UNIDADES_MEDIDA = [
   { value: 'UNIDAD', label: 'Unidad' },
-  { value: 'KG',     label: 'Kilogramo (KG)' },
-  { value: 'LITRO',  label: 'Litro (L)' },
-  { value: 'ML',     label: 'Mililitro (ML)' },
-  { value: 'G',      label: 'Gramo (G)' },
-  { value: 'CAJA',   label: 'Caja' },
+  { value: 'KG', label: 'Kilogramo (KG)' },
+  { value: 'LITRO', label: 'Litro (L)' },
+  { value: 'ML', label: 'Mililitro (ML)' },
+  { value: 'G', label: 'Gramo (G)' },
+  { value: 'CAJA', label: 'Caja' },
 ];
 
 const TIPO_AJUSTE_OPTIONS = [
   { value: 'ENTRADA', label: 'Entrada de stock' },
-  { value: 'SALIDA',  label: 'Salida de stock' },
-  { value: 'AJUSTE',  label: 'Ajuste de inventario' },
+  { value: 'SALIDA', label: 'Salida de stock' },
+  { value: 'AJUSTE', label: 'Ajuste de inventario' },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -138,7 +154,7 @@ function stockPercent(actual: number, minimo: number): number {
 }
 
 function stockStatus(actual: number, minimo: number): 'success' | 'exception' | 'normal' {
-  if (actual <= 0)      return 'exception';
+  if (actual <= 0) return 'exception';
   if (actual <= minimo) return 'exception';
   if (actual <= minimo * 1.2) return 'normal';
   return 'success';
@@ -147,15 +163,15 @@ function stockStatus(actual: number, minimo: number): 'success' | 'exception' | 
 // ── Estado inicial del formulario ────────────────────────────────────────────
 
 const FORM_EMPTY = {
-  codigo:        '',
-  nombre:        '',
-  descripcion:   '',
-  categoriaId:   undefined as number | undefined,
-  precioVenta:   undefined as number | undefined,
+  codigo: '',
+  nombre: '',
+  descripcion: '',
+  categoriaId: undefined as number | undefined,
+  precioVenta: undefined as number | undefined,
   costoPromedio: undefined as number | undefined,
-  stockMinimo:   undefined as number | undefined,
-  stockInicial:  undefined as number | undefined,
-  unidadMedida:  'UNIDAD',
+  stockMinimo: undefined as number | undefined,
+  stockInicial: undefined as number | undefined,
+  unidadMedida: 'UNIDAD',
 };
 
 // ── Componente principal ─────────────────────────────────────────────────────
@@ -170,66 +186,78 @@ export default function InventarioClient({
   const { theme: barberTheme } = useBarberTheme()
   const primary = barberTheme.colorPrimary
   const C = {
-    bgPage:       'hsl(var(--bg-page))',
-    bgSurface:    'hsl(var(--bg-surface))',
-    bgSubtle:     'hsl(var(--bg-subtle))',
-    bgMuted:      'hsl(var(--bg-muted))',
+    bgPage: 'hsl(var(--bg-page))',
+    bgSurface: 'hsl(var(--bg-surface))',
+    bgSubtle: 'hsl(var(--bg-subtle))',
+    bgMuted: 'hsl(var(--bg-muted))',
     bgPrimaryLow: `${primary}18`,
-    textPrimary:  'hsl(var(--text-primary))',
-    textSecondary:'hsl(var(--text-secondary))',
-    textMuted:    'hsl(var(--text-muted))',
+    textPrimary: 'hsl(var(--text-primary))',
+    textSecondary: 'hsl(var(--text-secondary))',
+    textMuted: 'hsl(var(--text-muted))',
     textDisabled: 'hsl(var(--text-disabled))',
-    border:       'hsl(var(--border-default))',
+    border: 'hsl(var(--border-default))',
     borderStrong: 'hsl(var(--border-strong))',
   }
 
   // ── Estado global ──────────────────────────────────────────────────────────
-  const [productos,   setProductos]   = useState<Producto[]>(initialProductos);
-  const [categorias,  setCategorias]  = useState<Categoria[]>(initialCategorias);
-  const [resumen,     setResumen]     = useState<Resumen>(initialResumen);
+  const [productos, setProductos] = useState<Producto[]>(initialProductos);
+  const [categorias, setCategorias] = useState<Categoria[]>(initialCategorias);
+  const [resumen, setResumen] = useState<Resumen>(initialResumen);
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'productos' | 'kardex'>('productos');
 
   // ── Kardex general ─────────────────────────────────────────────────────────
-  const [kardexGeneral,      setKardexGeneral]      = useState<KardexItem[]>(initialKardex);
+  const [kardexGeneral, setKardexGeneral] = useState<KardexItem[]>(initialKardex);
   const [kardexGeneralTotal, setKardexGeneralTotal] = useState(initialKardexTotal);
-  const [kardexGeneralPage,  setKardexGeneralPage]  = useState(1);
+  const [kardexGeneralPage, setKardexGeneralPage] = useState(1);
   const [kardexGeneralLoading, setKardexGeneralLoading] = useState(false);
 
   // ── Filtros de tabla ───────────────────────────────────────────────────────
-  const [search,        setSearch]        = useState('');
-  const [filterCat,     setFilterCat]     = useState<number | undefined>(undefined);
+  const [search, setSearch] = useState('');
+  const [filterCat, setFilterCat] = useState<number | undefined>(undefined);
   const [soloStockBajo, setSoloStockBajo] = useState(false);
 
   // ── Modal Producto (crear/editar) ─────────────────────────────────────────
-  const [modalOpen,   setModalOpen]   = useState(false);
-  const [editTarget,  setEditTarget]  = useState<Producto | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Producto | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [formError,   setFormError]   = useState('');
-  const [formData,    setFormData]    = useState({ ...FORM_EMPTY });
-  const [newCatName,  setNewCatName]  = useState('');
-  const [savingCat,   setSavingCat]   = useState(false);
+  const [formError, setFormError] = useState('');
+  const [formData, setFormData] = useState({ ...FORM_EMPTY });
+  const [newCatName, setNewCatName] = useState('');
+  const [savingCat, setSavingCat] = useState(false);
+
+  // ── Drawer Categorías ──────────────────────────────────────────────────────
+  const [catDrawerOpen, setCatDrawerOpen] = useState(false);
+  const [catFormName, setCatFormName] = useState('');
+  const [catFormColor, setCatFormColor] = useState('blue');
+  const [catSaving, setCatSaving] = useState(false);
+  // Edit
+  const [catEditTarget, setCatEditTarget] = useState<Categoria | null>(null);
+  const [catEditOpen, setCatEditOpen] = useState(false);
+  const [catEditName, setCatEditName] = useState('');
+  const [catEditColor, setCatEditColor] = useState('blue');
+  const [catEditSaving, setCatEditSaving] = useState(false);
 
   // ── Drawer Kardex de producto ───────────────────────────────────────────────
-  const [kardexOpen,     setKardexOpen]     = useState(false);
+  const [kardexOpen, setKardexOpen] = useState(false);
   const [kardexProducto, setKardexProducto] = useState<Producto | null>(null);
-  const [kardexItems,    setKardexItems]    = useState<KardexItem[]>([]);
-  const [kardexTotal,    setKardexTotal]    = useState(0);
-  const [kardexLoading,  setKardexLoading]  = useState(false);
+  const [kardexItems, setKardexItems] = useState<KardexItem[]>([]);
+  const [kardexTotal, setKardexTotal] = useState(0);
+  const [kardexLoading, setKardexLoading] = useState(false);
 
   // ── Modal Ajuste de Stock ──────────────────────────────────────────────────
-  const [ajusteOpen,    setAjusteOpen]    = useState(false);
-  const [ajusteTarget,  setAjusteTarget]  = useState<Producto | null>(null);
+  const [ajusteOpen, setAjusteOpen] = useState(false);
+  const [ajusteTarget, setAjusteTarget] = useState<Producto | null>(null);
   // When opened globally (no specific product), allow picking from dropdown
   const [ajusteProductoId, setAjusteProductoId] = useState<number | undefined>(undefined);
   const [ajusteLoading, setAjusteLoading] = useState(false);
-  const [ajusteError,   setAjusteError]   = useState('');
-  const [ajusteTipo,    setAjusteTipo]    = useState<'ENTRADA' | 'SALIDA' | 'AJUSTE'>('ENTRADA');
-  const [ajusteCantidad,    setAjusteCantidad]    = useState<number | null>(null);
-  const [ajusteCosto,       setAjusteCosto]       = useState<number | null>(null);
-  const [ajusteReferencia,  setAjusteReferencia]  = useState('');
-  const [ajusteNotas,       setAjusteNotas]       = useState('');
+  const [ajusteError, setAjusteError] = useState('');
+  const [ajusteTipo, setAjusteTipo] = useState<'ENTRADA' | 'SALIDA' | 'AJUSTE'>('ENTRADA');
+  const [ajusteCantidad, setAjusteCantidad] = useState<number | null>(null);
+  const [ajusteCosto, setAjusteCosto] = useState<number | null>(null);
+  const [ajusteReferencia, setAjusteReferencia] = useState('');
+  const [ajusteNotas, setAjusteNotas] = useState('');
 
   // ── Lista filtrada ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -264,15 +292,15 @@ export default function InventarioClient({
   function openEdit(p: Producto) {
     setEditTarget(p);
     setFormData({
-      codigo:        p.codigo,
-      nombre:        p.nombre,
-      descripcion:   p.descripcion ?? '',
-      categoriaId:   p.categoriaId ?? undefined,
-      precioVenta:   p.precioVenta,
+      codigo: p.codigo,
+      nombre: p.nombre,
+      descripcion: p.descripcion ?? '',
+      categoriaId: p.categoriaId ?? undefined,
+      precioVenta: p.precioVenta,
       costoPromedio: p.costoPromedio,
-      stockMinimo:   p.stockMinimo,
-      stockInicial:  undefined,
-      unidadMedida:  p.unidadMedida,
+      stockMinimo: p.stockMinimo,
+      stockInicial: undefined,
+      unidadMedida: p.unidadMedida,
     });
     setFormError('');
     setNewCatName('');
@@ -284,9 +312,9 @@ export default function InventarioClient({
     setSavingCat(true);
     try {
       const res = await fetch('/api/productos/categorias', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ nombre: newCatName.trim() }),
+        body: JSON.stringify({ nombre: newCatName.trim(), color: catFormColor }),
       });
       const json = await res.json();
       if (!res.ok) { toast.error(json.error?.message ?? 'Error al crear categoría'); return; }
@@ -294,6 +322,7 @@ export default function InventarioClient({
       setCategorias(prev => [...prev, cat].sort((a, b) => a.nombre.localeCompare(b.nombre)));
       setFormData(prev => ({ ...prev, categoriaId: cat.id }));
       setNewCatName('');
+      setResumen(prev => ({ ...prev, totalCategorias: prev.totalCategorias + 1 }));
       toast.success(`Categoría "${cat.nombre}" creada`);
     } catch {
       toast.error('Error de red');
@@ -302,9 +331,79 @@ export default function InventarioClient({
     }
   }
 
+  // ── Handlers: Categorías Drawer ────────────────────────────────────────────
+
+  async function handleCreateCatDrawer() {
+    if (!catFormName.trim()) return;
+    setCatSaving(true);
+    try {
+      const res = await fetch('/api/productos/categorias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: catFormName.trim(), color: catFormColor }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error?.message ?? 'Error al crear'); return; }
+      const cat: Categoria = json.data;
+      setCategorias(prev => [...prev, cat].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setResumen(prev => ({ ...prev, totalCategorias: prev.totalCategorias + 1 }));
+      setCatFormName('');
+      setCatFormColor('blue');
+      toast.success(`Categoría "${cat.nombre}" creada`);
+    } catch {
+      toast.error('Error de red');
+    } finally {
+      setCatSaving(false);
+    }
+  }
+
+  function openEditCat(cat: Categoria) {
+    setCatEditTarget(cat);
+    setCatEditName(cat.nombre);
+    setCatEditColor(cat.color ?? 'blue');
+    setCatEditOpen(true);
+  }
+
+  async function handleUpdateCat() {
+    if (!catEditTarget || !catEditName.trim()) return;
+    setCatEditSaving(true);
+    try {
+      const res = await fetch(`/api/productos/categorias/${catEditTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: catEditName.trim(), color: catEditColor }),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error?.message ?? 'Error al actualizar'); return; }
+      const updated: Categoria = json.data;
+      setCategorias(prev =>
+        prev.map(c => c.id === updated.id ? updated : c).sort((a, b) => a.nombre.localeCompare(b.nombre))
+      );
+      setCatEditOpen(false);
+      toast.success(`Categoría "${updated.nombre}" actualizada`);
+    } catch {
+      toast.error('Error de red');
+    } finally {
+      setCatEditSaving(false);
+    }
+  }
+
+  async function handleDeleteCat(cat: Categoria) {
+    try {
+      const res = await fetch(`/api/productos/categorias/${cat.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error?.message ?? 'Error al eliminar'); return; }
+      setCategorias(prev => prev.filter(c => c.id !== cat.id));
+      setResumen(prev => ({ ...prev, totalCategorias: Math.max(0, prev.totalCategorias - 1) }));
+      toast.success(`Categoría "${cat.nombre}" eliminada`);
+    } catch {
+      toast.error('Error de red');
+    }
+  }
+
   async function handleSubmitProducto() {
-    if (!formData.codigo.trim())  { setFormError('El código es requerido'); return; }
-    if (!formData.nombre.trim())  { setFormError('El nombre es requerido'); return; }
+    if (!formData.codigo.trim()) { setFormError('El código es requerido'); return; }
+    if (!formData.nombre.trim()) { setFormError('El nombre es requerido'); return; }
     if (!formData.precioVenta || formData.precioVenta <= 0) {
       setFormError('El precio de venta debe ser mayor a 0');
       return;
@@ -314,26 +413,26 @@ export default function InventarioClient({
     setFormError('');
 
     const payload = {
-      codigo:        formData.codigo.trim().toUpperCase(),
-      nombre:        formData.nombre.trim(),
-      descripcion:   formData.descripcion?.trim() || undefined,
-      categoriaId:   formData.categoriaId,
-      precioVenta:   formData.precioVenta,
+      codigo: formData.codigo.trim().toUpperCase(),
+      nombre: formData.nombre.trim(),
+      descripcion: formData.descripcion?.trim() || undefined,
+      categoriaId: formData.categoriaId,
+      precioVenta: formData.precioVenta,
       costoPromedio: formData.costoPromedio ?? 0,
-      stockMinimo:   formData.stockMinimo   ?? 0,
-      stockInicial:  formData.stockInicial  ?? 0,
-      unidadMedida:  formData.unidadMedida,
+      stockMinimo: formData.stockMinimo ?? 0,
+      stockInicial: formData.stockInicial ?? 0,
+      unidadMedida: formData.unidadMedida,
     };
 
     try {
       const isEdit = editTarget !== null;
-      const url    = isEdit ? `/api/productos/${editTarget.id}` : '/api/productos';
+      const url = isEdit ? `/api/productos/${editTarget.id}` : '/api/productos';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const res  = await fetch(url, {
+      const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
 
@@ -371,13 +470,13 @@ export default function InventarioClient({
 
   async function handleDeactivate(p: Producto) {
     try {
-      const res  = await fetch(`/api/productos/${p.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/productos/${p.id}`, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) { toast.error(json.error?.message ?? 'Error al desactivar'); return; }
       setProductos(prev => prev.filter(x => x.id !== p.id));
       setResumen(prev => ({
         ...prev,
-        totalProductos:     Math.max(0, prev.totalProductos - 1),
+        totalProductos: Math.max(0, prev.totalProductos - 1),
         productosStockBajo: p.stockBajo
           ? Math.max(0, prev.productosStockBajo - 1)
           : prev.productosStockBajo,
@@ -395,7 +494,7 @@ export default function InventarioClient({
     setKardexOpen(true);
     setKardexLoading(true);
     try {
-      const res  = await fetch(`/api/productos/${p.id}/kardex?limit=50`);
+      const res = await fetch(`/api/productos/${p.id}/kardex?limit=50`);
       const json = await res.json();
       if (res.ok) {
         setKardexItems(json.data.items);
@@ -413,7 +512,7 @@ export default function InventarioClient({
   async function loadKardexGeneral(page = 1) {
     setKardexGeneralLoading(true);
     try {
-      const res  = await fetch(`/api/productos/kardex-general?page=${page}&limit=30`);
+      const res = await fetch(`/api/productos/kardex-general?page=${page}&limit=30`);
       const json = await res.json();
       if (res.ok) {
         setKardexGeneral(json.data.items);
@@ -465,14 +564,14 @@ export default function InventarioClient({
 
     try {
       const res = await fetch(`/api/productos/${efectivo.id}/ajustar-stock`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
+        body: JSON.stringify({
           tipoMovimiento: ajusteTipo,
-          cantidad:       ajusteCantidad,
-          costoUnitario:  ajusteCosto ?? efectivo.costoPromedio,
-          referencia:     ajusteReferencia.trim(),
-          notas:          ajusteNotas.trim() || undefined,
+          cantidad: ajusteCantidad,
+          costoUnitario: ajusteCosto ?? efectivo.costoPromedio,
+          referencia: ajusteReferencia.trim(),
+          notas: ajusteNotas.trim() || undefined,
         }),
       });
       const json = await res.json();
@@ -487,7 +586,7 @@ export default function InventarioClient({
 
       // Recalcular resumen (diferencia de stockBajo)
       const wasStockBajo = efectivo.stockBajo;
-      const isStockBajo  = updated.stockBajo;
+      const isStockBajo = updated.stockBajo;
       if (wasStockBajo !== isStockBajo) {
         setResumen(prev => ({
           ...prev,
@@ -516,24 +615,24 @@ export default function InventarioClient({
   const columns: ColumnsType<Producto> = [
     {
       title: 'Código',
-      key:   'codigo',
+      key: 'codigo',
       width: 110,
       render: (_, r) => (
         <Text code style={{ fontSize: 12 }}>{r.codigo}</Text>
       ),
     },
     {
-      title:  'Producto',
-      key:    'nombre',
+      title: 'Producto',
+      key: 'nombre',
       render: (_, r) => (
         <Space size={10}>
           {/* Avatar con iniciales */}
           <div style={{
             width: 36, height: 36, borderRadius: 8, flexShrink: 0,
             background: r.stockBajo ? '#fff1f0' : `${primary}18`,
-            border:     `1px solid ${r.stockBajo ? '#ffa39e' : `${primary}30`}`,
-            color:      r.stockBajo ? '#cf1322' : primary,
-            display:    'flex', alignItems: 'center', justifyContent: 'center',
+            border: `1px solid ${r.stockBajo ? '#ffa39e' : `${primary}30`}`,
+            color: r.stockBajo ? '#cf1322' : primary,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 11, fontWeight: 700,
           }}>
             {getInitials(r.nombre)}
@@ -544,7 +643,7 @@ export default function InventarioClient({
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
               {r.categoria && (
-                <Tag color="teal" style={{ fontSize: 10, margin: 0, lineHeight: '16px' }}>
+                <Tag color={(categorias.find(c => c.id === r.categoria?.id)?.color) ?? 'teal'} style={{ fontSize: 10, margin: 0, lineHeight: '16px' }}>
                   {r.categoria.nombre}
                 </Tag>
               )}
@@ -559,11 +658,11 @@ export default function InventarioClient({
       ),
     },
     {
-      title:  'Stock',
-      key:    'stock',
-      width:  180,
+      title: 'Stock',
+      key: 'stock',
+      width: 180,
       render: (_, r) => {
-        const pct    = stockPercent(r.stockActual, r.stockMinimo);
+        const pct = stockPercent(r.stockActual, r.stockMinimo);
         const status = stockStatus(r.stockActual, r.stockMinimo);
         return (
           <div>
@@ -593,10 +692,10 @@ export default function InventarioClient({
       },
     },
     {
-      title:      'Costo prom.',
-      key:        'costo',
-      width:      110,
-      align:      'right',
+      title: 'Costo prom.',
+      key: 'costo',
+      width: 110,
+      align: 'right',
       responsive: ['md'],
       render: (_, r) => (
         <Text style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
@@ -605,10 +704,10 @@ export default function InventarioClient({
       ),
     },
     {
-      title:  'Precio venta',
-      key:    'precio',
-      width:  120,
-      align:  'right',
+      title: 'Precio venta',
+      key: 'precio',
+      width: 120,
+      align: 'right',
       render: (_, r) => (
         <Text strong style={{ color: primary, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
           {formatMoney(r.precioVenta)}
@@ -616,19 +715,19 @@ export default function InventarioClient({
       ),
     },
     {
-      title:      'Unidad',
-      key:        'unidad',
-      width:      90,
+      title: 'Unidad',
+      key: 'unidad',
+      width: 90,
       responsive: ['lg'],
       render: (_, r) => (
         <Tag style={{ fontSize: 10 }}>{r.unidadMedida}</Tag>
       ),
     },
     {
-      title:  'Acciones',
-      key:    'actions',
-      width:  130,
-      fixed:  'right',
+      title: 'Acciones',
+      key: 'actions',
+      width: 130,
+      fixed: 'right',
       render: (_, r) => (
         <Space size={4}>
           <Tooltip title="Editar">
@@ -673,9 +772,9 @@ export default function InventarioClient({
 
   const kardexColumns: ColumnsType<KardexItem> = [
     {
-      title:  'Tipo',
-      key:    'tipo',
-      width:  110,
+      title: 'Tipo',
+      key: 'tipo',
+      width: 110,
       render: (_, k) => (
         <Tag color={TIPO_MOVIMIENTO_COLORS[k.tipoMovimiento] ?? 'default'} style={{ fontSize: 11 }}>
           {TIPO_MOVIMIENTO_LABELS[k.tipoMovimiento] ?? k.tipoMovimiento}
@@ -683,8 +782,8 @@ export default function InventarioClient({
       ),
     },
     {
-      title:  'Referencia',
-      key:    'ref',
+      title: 'Referencia',
+      key: 'ref',
       render: (_, k) => (
         <div>
           <div style={{ fontSize: 12, fontWeight: 500 }}>{k.referencia}</div>
@@ -696,7 +795,7 @@ export default function InventarioClient({
     },
     {
       title: 'Cantidad',
-      key:   'cantidad',
+      key: 'cantidad',
       width: 90,
       align: 'right',
       render: (_, k) => (
@@ -706,10 +805,10 @@ export default function InventarioClient({
       ),
     },
     {
-      title:      'Costo unit.',
-      key:        'costoU',
-      width:      100,
-      align:      'right',
+      title: 'Costo unit.',
+      key: 'costoU',
+      width: 100,
+      align: 'right',
       responsive: ['md'],
       render: (_, k) => (
         <Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
@@ -719,7 +818,7 @@ export default function InventarioClient({
     },
     {
       title: 'Stock',
-      key:   'stock',
+      key: 'stock',
       width: 130,
       render: (_, k) => (
         <Space>
@@ -732,9 +831,9 @@ export default function InventarioClient({
       ),
     },
     {
-      title:      'Fecha',
-      key:        'fecha',
-      width:      140,
+      title: 'Fecha',
+      key: 'fecha',
+      width: 140,
       responsive: ['lg'],
       render: (_, k) => (
         <Text type="secondary" style={{ fontSize: 11 }}>{formatDate(k.fecha)}</Text>
@@ -746,16 +845,16 @@ export default function InventarioClient({
 
   const kardexGeneralColumns: ColumnsType<KardexItem> = [
     {
-      title:  'Fecha',
-      key:    'fecha',
-      width:  145,
+      title: 'Fecha',
+      key: 'fecha',
+      width: 145,
       render: (_, k) => (
         <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(k.fecha)}</Text>
       ),
     },
     {
-      title:  'Producto',
-      key:    'producto',
+      title: 'Producto',
+      key: 'producto',
       render: (_, k) => k.producto ? (
         <div>
           <div style={{ fontWeight: 500, fontSize: 13 }}>{k.producto.nombre}</div>
@@ -764,9 +863,9 @@ export default function InventarioClient({
       ) : <Text type="secondary">—</Text>,
     },
     {
-      title:  'Tipo',
-      key:    'tipo',
-      width:  115,
+      title: 'Tipo',
+      key: 'tipo',
+      width: 115,
       render: (_, k) => (
         <Tag
           color={TIPO_MOVIMIENTO_COLORS[k.tipoMovimiento] ?? 'default'}
@@ -777,8 +876,8 @@ export default function InventarioClient({
       ),
     },
     {
-      title:  'Referencia',
-      key:    'ref',
+      title: 'Referencia',
+      key: 'ref',
       render: (_, k) => (
         <div>
           <div style={{ fontSize: 12, fontWeight: 500 }}>{k.referencia}</div>
@@ -789,10 +888,10 @@ export default function InventarioClient({
       ),
     },
     {
-      title:  'Cantidad',
-      key:    'cantidad',
-      width:  90,
-      align:  'right',
+      title: 'Cantidad',
+      key: 'cantidad',
+      width: 90,
+      align: 'right',
       render: (_, k) => {
         const esSalida = k.tipoMovimiento === 'SALIDA' || k.tipoMovimiento === 'ANULACION';
         return (
@@ -808,10 +907,10 @@ export default function InventarioClient({
       },
     },
     {
-      title:      'Costo unit.',
-      key:        'costoU',
-      width:      100,
-      align:      'right',
+      title: 'Costo unit.',
+      key: 'costoU',
+      width: 100,
+      align: 'right',
       responsive: ['md'],
       render: (_, k) => (
         <Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
@@ -821,7 +920,7 @@ export default function InventarioClient({
     },
     {
       title: 'Stock ant. → nuevo',
-      key:   'stock',
+      key: 'stock',
       width: 140,
       responsive: ['lg'],
       render: (_, k) => (
@@ -897,7 +996,7 @@ export default function InventarioClient({
           size="small"
           items={[
             {
-              key:   'productos',
+              key: 'productos',
               label: `Productos (${resumen.totalProductos})`,
               children: (
                 <>
@@ -942,6 +1041,14 @@ export default function InventarioClient({
                     </Col>
                     <Col>
                       <Button
+                        icon={<TagsOutlined />}
+                        onClick={() => setCatDrawerOpen(true)}
+                      >
+                        Categorías
+                      </Button>
+                    </Col>
+                    <Col>
+                      <Button
                         icon={<SwapOutlined />}
                         onClick={() => openAjuste(undefined)}
                       >
@@ -964,13 +1071,13 @@ export default function InventarioClient({
                   {resumen.productosStockBajo > 0 && !soloStockBajo && (
                     <div style={{
                       background: '#fff1f0',
-                      border:     '1px solid #ffccc7',
+                      border: '1px solid #ffccc7',
                       borderRadius: 6,
-                      padding:    '7px 12px',
+                      padding: '7px 12px',
                       marginBottom: 12,
-                      display:    'flex',
+                      display: 'flex',
                       alignItems: 'center',
-                      gap:        8,
+                      gap: 8,
                     }}>
                       <WarningOutlined style={{ color: '#ff4d4f' }} />
                       <Text style={{ color: '#cf1322', fontSize: 13 }}>
@@ -1018,7 +1125,7 @@ export default function InventarioClient({
               ),
             },
             {
-              key:   'kardex',
+              key: 'kardex',
               label: `Kardex general (${kardexGeneralTotal})`,
               children: (
                 <Table
@@ -1029,11 +1136,11 @@ export default function InventarioClient({
                   scroll={{ x: 720 }}
                   loading={kardexGeneralLoading}
                   pagination={{
-                    total:     kardexGeneralTotal,
-                    current:   kardexGeneralPage,
-                    pageSize:  30,
+                    total: kardexGeneralTotal,
+                    current: kardexGeneralPage,
+                    pageSize: 30,
                     showTotal: (t, range) => `${range[0]}–${range[1]} de ${t} movimientos`,
-                    onChange:  (page) => {
+                    onChange: (page) => {
                       setKardexGeneralPage(page);
                       loadKardexGeneral(page);
                     },
@@ -1106,37 +1213,27 @@ export default function InventarioClient({
             />
           </FormField>
 
-          {/* Categoría + crear inline */}
+          {/* Categoría */}
           <FormField label="Categoría">
-            <Space.Compact style={{ width: '100%' }}>
-              <Select
-                style={{ flex: 1 }}
-                placeholder="Seleccionar categoría..."
-                allowClear
-                value={formData.categoriaId}
-                onChange={v => setFormData(p => ({ ...p, categoriaId: v }))}
-                options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
-                showSearch
-                filterOption={(input, opt) =>
-                  (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
-                }
-              />
-              <Input
-                style={{ width: 180 }}
-                placeholder="Nueva categoría"
-                value={newCatName}
-                onChange={e => setNewCatName(e.target.value)}
-                onPressEnter={handleSaveCategoria}
-              />
-              <Button
-                onClick={handleSaveCategoria}
-                loading={savingCat}
-                disabled={!newCatName.trim()}
-                style={{ background: primary, borderColor: primary, color: '#fff' }}
-              >
-                <PlusOutlined />
-              </Button>
-            </Space.Compact>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Seleccionar categoría..."
+              allowClear
+              value={formData.categoriaId}
+              onChange={v => setFormData(p => ({ ...p, categoriaId: v }))}
+              showSearch
+              filterOption={(input, opt) =>
+                (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              optionRender={(opt) => (
+                <Space size={6}>
+                  <Tag color={categorias.find(c => c.id === opt.value)?.color ?? 'blue'} style={{ margin: 0 }}>
+                    {opt.label as string}
+                  </Tag>
+                </Space>
+              )}
+              options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
+            />
           </FormField>
 
           {/* Precios */}
@@ -1311,6 +1408,180 @@ export default function InventarioClient({
           }}
         />
       </Drawer>
+
+      {/* ══════════════════════════════════════════════════════
+          Drawer: CRUD de Categorías
+      ══════════════════════════════════════════════════════ */}
+      <Drawer
+        title={
+          <Space>
+            <TagsOutlined style={{ color: '#722ed1' }} />
+            <span>Gestión de Categorías</span>
+          </Space>
+        }
+        open={catDrawerOpen}
+        onClose={() => setCatDrawerOpen(false)}
+        width={500}
+        destroyOnHidden
+      >
+        {/* Formulario crear */}
+        <div style={{
+          background: C.bgSubtle, borderRadius: 8, padding: 16, marginBottom: 20,
+          border: `1px solid ${C.border}`,
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 12, fontSize: 13 }}>Nueva categoría</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <FormField label="Nombre *">
+              <Input
+                value={catFormName}
+                onChange={e => setCatFormName(e.target.value)}
+                placeholder="Ej: Shampoos, Tintes, Herramientas..."
+                maxLength={60}
+                onPressEnter={handleCreateCatDrawer}
+              />
+            </FormField>
+            <FormField label="Color">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                {CATEGORY_COLORS.map(c => (
+                  <Tag
+                    key={c.value}
+                    color={c.value}
+                    style={{
+                      cursor: 'pointer', margin: 0,
+                      outline: catFormColor === c.value ? '2px solid #1890ff' : 'none',
+                      outlineOffset: 2,
+                    }}
+                    onClick={() => setCatFormColor(c.value)}
+                  >
+                    {c.label}
+                  </Tag>
+                ))}
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <span style={{ fontSize: 12, color: C.textMuted }}>Vista previa: </span>
+                <Tag color={catFormColor} style={{ margin: 0 }}>{catFormName || 'Ejemplo'}</Tag>
+              </div>
+            </FormField>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              loading={catSaving}
+              disabled={!catFormName.trim()}
+              onClick={handleCreateCatDrawer}
+              style={{ background: primary, borderColor: primary, alignSelf: 'flex-start' }}
+            >
+              Crear categoría
+            </Button>
+          </div>
+        </div>
+
+        {/* Tabla de categorías existentes */}
+        <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13 }}>
+          Categorías ({categorias.length})
+        </div>
+        {categorias.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 32, color: C.textMuted }}>
+            <TagsOutlined style={{ fontSize: 28, color: C.textDisabled }} />
+            <div style={{ marginTop: 8 }}>Sin categorías creadas</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {categorias.map(cat => (
+              <div key={cat.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '8px 12px', borderRadius: 8,
+                border: `1px solid ${C.border}`, background: C.bgSurface,
+              }}>
+                <Tag color={cat.color ?? 'blue'} style={{ margin: 0, fontSize: 13 }}>
+                  {cat.nombre}
+                </Tag>
+                <Space size={4}>
+                  <Tooltip title="Editar">
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => openEditCat(cat)}
+                    />
+                  </Tooltip>
+                  <Popconfirm
+                    title={`¿Eliminar "${cat.nombre}"?`}
+                    description="Los productos con esta categoría quedarán sin categoría."
+                    onConfirm={() => handleDeleteCat(cat)}
+                    okText="Sí, eliminar"
+                    cancelText="Cancelar"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Tooltip title="Eliminar">
+                      <Button size="small" icon={<DeleteOutlined />} danger />
+                    </Tooltip>
+                  </Popconfirm>
+                </Space>
+              </div>
+            ))}
+          </div>
+        )}
+      </Drawer>
+
+      {/* ══════════════════════════════════════════════════════
+          Modal: Editar categoría
+      ══════════════════════════════════════════════════════ */}
+      <Modal
+        open={catEditOpen}
+        onCancel={() => setCatEditOpen(false)}
+        title={
+          <Space>
+            <TagsOutlined style={{ color: '#722ed1' }} />
+            <span>Editar categoría</span>
+          </Space>
+        }
+        footer={null}
+        destroyOnHidden
+        width={420}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '8px 0' }}>
+          <FormField label="Nombre *">
+            <Input
+              value={catEditName}
+              onChange={e => setCatEditName(e.target.value)}
+              maxLength={60}
+              onPressEnter={handleUpdateCat}
+            />
+          </FormField>
+          <FormField label="Color">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              {CATEGORY_COLORS.map(c => (
+                <Tag
+                  key={c.value}
+                  color={c.value}
+                  style={{
+                    cursor: 'pointer', margin: 0,
+                    outline: catEditColor === c.value ? '2px solid #1890ff' : 'none',
+                    outlineOffset: 2,
+                  }}
+                  onClick={() => setCatEditColor(c.value)}
+                >
+                  {c.label}
+                </Tag>
+              ))}
+            </div>
+            <div style={{ marginTop: 6 }}>
+              <span style={{ fontSize: 12, color: C.textMuted }}>Vista previa: </span>
+              <Tag color={catEditColor} style={{ margin: 0 }}>{catEditName || 'Ejemplo'}</Tag>
+            </div>
+          </FormField>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+          <Button onClick={() => setCatEditOpen(false)}>Cancelar</Button>
+          <Button
+            type="primary"
+            loading={catEditSaving}
+            onClick={handleUpdateCat}
+            style={{ background: primary, borderColor: primary }}
+          >
+            Guardar cambios
+          </Button>
+        </div>
+      </Modal>
 
       {/* ══════════════════════════════════════════════════════
           Modal: Ajuste de stock

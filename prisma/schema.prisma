@@ -341,6 +341,7 @@ model BarberCategoriaProducto {
   tenantId  Int
   tenant    BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   nombre    String
+  color     String    @default("blue")
   activa    Boolean   @default(true)
   createdAt DateTime  @default(now())
 

@@ -186,11 +186,11 @@ export async function findAllCategorias(tenantId: number) {
   });
 }
 
-export async function createCategoria(tenantId: number, nombre: string) {
+export async function createCategoria(tenantId: number, nombre: string, color = 'blue') {
   return prisma.barberCategoriaProducto.upsert({
     where: { tenantId_nombre: { tenantId, nombre } },
-    update: { activa: true },
-    create: { tenantId, nombre },
+    update: { activa: true, color },
+    create: { tenantId, nombre, color },
   });
 }
 
@@ -265,8 +265,8 @@ export async function ajustarStock(
     let nuevoCostoPromedio = Number(producto.costoPromedio);
     if (data.tipoMovimiento === 'ENTRADA' && data.costoUnitario > 0) {
       const costoTotalAnterior = stockAnterior * nuevoCostoPromedio;
-      const costoTotalNuevo    = cantidad * data.costoUnitario;
-      const nuevoStock         = stockAnterior + cantidad;
+      const costoTotalNuevo = cantidad * data.costoUnitario;
+      const nuevoStock = stockAnterior + cantidad;
       nuevoCostoPromedio = nuevoStock > 0
         ? (costoTotalAnterior + costoTotalNuevo) / nuevoStock
         : data.costoUnitario;
@@ -278,10 +278,10 @@ export async function ajustarStock(
         tenantId,
         productoId,
         tipoMovimiento: data.tipoMovimiento,
-        referencia:     data.referencia,
-        cantidad:       data.tipoMovimiento === 'AJUSTE' ? cantidad - stockAnterior : cantidad,
-        costoUnitario:  data.costoUnitario,
-        costoTotal:     Math.abs(data.tipoMovimiento === 'AJUSTE' ? (cantidad - stockAnterior) * data.costoUnitario : cantidad * data.costoUnitario),
+        referencia: data.referencia,
+        cantidad: data.tipoMovimiento === 'AJUSTE' ? cantidad - stockAnterior : cantidad,
+        costoUnitario: data.costoUnitario,
+        costoTotal: Math.abs(data.tipoMovimiento === 'AJUSTE' ? (cantidad - stockAnterior) * data.costoUnitario : cantidad * data.costoUnitario),
         stockAnterior,
         stockNuevo,
         notas: data.notas,
@@ -293,7 +293,7 @@ export async function ajustarStock(
     const updatedProducto = await tx.barberProducto.update({
       where: { id: productoId },
       data: {
-        stockActual:   stockNuevo,
+        stockActual: stockNuevo,
         costoPromedio: nuevoCostoPromedio,
       },
       include: PRODUCTO_INCLUDE,
@@ -311,7 +311,7 @@ export async function getResumenInventario(tenantId: number) {
     select: { stockActual: true, stockMinimo: true, costoPromedio: true },
   });
 
-  const totalProductos    = productos.length;
+  const totalProductos = productos.length;
   const productosStockBajo = productos.filter(
     p => Number(p.stockActual) <= Number(p.stockMinimo),
   ).length;

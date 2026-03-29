@@ -11,36 +11,36 @@ import { prisma } from '@/lib/prisma';
 // ── Tipos serializados (Decimal → number) ───────────────────────────────────────
 
 export type ProductoSerialized = {
-  id:            number;
-  tenantId:      number;
-  codigo:        string;
-  nombre:        string;
-  descripcion:   string | null;
-  categoriaId:   number | null;
-  categoria:     { id: number; nombre: string } | null;
-  precioVenta:   number;
+  id: number;
+  tenantId: number;
+  codigo: string;
+  nombre: string;
+  descripcion: string | null;
+  categoriaId: number | null;
+  categoria: { id: number; nombre: string } | null;
+  precioVenta: number;
   costoPromedio: number;
-  stockMinimo:   number;
-  stockActual:   number;
-  unidadMedida:  string;
-  activo:        boolean;
-  stockBajo:     boolean;
+  stockMinimo: number;
+  stockActual: number;
+  unidadMedida: string;
+  activo: boolean;
+  stockBajo: boolean;
 };
 
 export type KardexSerialized = {
-  id:             number;
-  tenantId:       number;
-  productoId:     number;
+  id: number;
+  tenantId: number;
+  productoId: number;
   tipoMovimiento: string;
-  referencia:     string;
-  cantidad:       number;
-  costoUnitario:  number;
-  costoTotal:     number;
-  stockAnterior:  number;
-  stockNuevo:     number;
-  notas:          string | null;
-  fecha:          string;
-  producto:       { id: number; codigo: string; nombre: string; unidadMedida: string } | null;
+  referencia: string;
+  cantidad: number;
+  costoUnitario: number;
+  costoTotal: number;
+  stockAnterior: number;
+  stockNuevo: number;
+  notas: string | null;
+  fecha: string;
+  producto: { id: number; codigo: string; nombre: string; unidadMedida: string } | null;
 };
 
 // ── Serializadores ──────────────────────────────────────────────────────────────
@@ -48,59 +48,59 @@ export type KardexSerialized = {
 type RawProducto = Awaited<ReturnType<typeof repo.findProductoById>>;
 
 function serializeProducto(p: NonNullable<RawProducto>): ProductoSerialized {
-  const stockActual  = Number(p.stockActual);
-  const stockMinimo  = Number(p.stockMinimo);
+  const stockActual = Number(p.stockActual);
+  const stockMinimo = Number(p.stockMinimo);
   return {
-    id:            p.id,
-    tenantId:      p.tenantId,
-    codigo:        p.codigo,
-    nombre:        p.nombre,
-    descripcion:   p.descripcion ?? null,
-    categoriaId:   p.categoriaId ?? null,
-    categoria:     p.categoria ?? null,
-    precioVenta:   Number(p.precioVenta),
+    id: p.id,
+    tenantId: p.tenantId,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    descripcion: p.descripcion ?? null,
+    categoriaId: p.categoriaId ?? null,
+    categoria: p.categoria ?? null,
+    precioVenta: Number(p.precioVenta),
     costoPromedio: Number(p.costoPromedio),
     stockMinimo,
     stockActual,
-    unidadMedida:  p.unidadMedida,
-    activo:        p.activo,
-    stockBajo:     stockActual <= stockMinimo,
+    unidadMedida: p.unidadMedida,
+    activo: p.activo,
+    stockBajo: stockActual <= stockMinimo,
   };
 }
 
 type RawKardex = {
-  id:             number;
-  tenantId:       number;
-  productoId:     number;
+  id: number;
+  tenantId: number;
+  productoId: number;
   tipoMovimiento: string;
-  referencia:     string;
-  cantidad:       { toNumber(): number } | number;
-  costoUnitario:  { toNumber(): number } | number;
-  costoTotal:     { toNumber(): number } | number;
-  stockAnterior:  { toNumber(): number } | number;
-  stockNuevo:     { toNumber(): number } | number;
-  notas:          string | null;
-  fecha:          Date;
-  producto:       { id: number; codigo: string; nombre: string; unidadMedida: string } | null;
+  referencia: string;
+  cantidad: { toNumber(): number } | number;
+  costoUnitario: { toNumber(): number } | number;
+  costoTotal: { toNumber(): number } | number;
+  stockAnterior: { toNumber(): number } | number;
+  stockNuevo: { toNumber(): number } | number;
+  notas: string | null;
+  fecha: Date;
+  producto: { id: number; codigo: string; nombre: string; unidadMedida: string } | null;
 };
 
 function serializeKardex(k: RawKardex): KardexSerialized {
   const toNum = (v: { toNumber(): number } | number) =>
     typeof v === 'number' ? v : v.toNumber();
   return {
-    id:             k.id,
-    tenantId:       k.tenantId,
-    productoId:     k.productoId,
+    id: k.id,
+    tenantId: k.tenantId,
+    productoId: k.productoId,
     tipoMovimiento: k.tipoMovimiento,
-    referencia:     k.referencia,
-    cantidad:       toNum(k.cantidad),
-    costoUnitario:  toNum(k.costoUnitario),
-    costoTotal:     toNum(k.costoTotal),
-    stockAnterior:  toNum(k.stockAnterior),
-    stockNuevo:     toNum(k.stockNuevo),
-    notas:          k.notas ?? null,
-    fecha:          k.fecha.toISOString(),
-    producto:       k.producto ?? null,
+    referencia: k.referencia,
+    cantidad: toNum(k.cantidad),
+    costoUnitario: toNum(k.costoUnitario),
+    costoTotal: toNum(k.costoTotal),
+    stockAnterior: toNum(k.stockAnterior),
+    stockNuevo: toNum(k.stockNuevo),
+    notas: k.notas ?? null,
+    fecha: k.fecha.toISOString(),
+    producto: k.producto ?? null,
   };
 }
 
@@ -108,17 +108,17 @@ function serializeKardex(k: RawKardex): KardexSerialized {
 
 export async function listProductos(tenantId: number, query: Record<string, string> = {}) {
   const filters: repo.ProductoFilters = {};
-  if (query.search)       filters.search       = query.search;
-  if (query.categoriaId)  filters.categoriaId  = Number(query.categoriaId);
+  if (query.search) filters.search = query.search;
+  if (query.categoriaId) filters.categoriaId = Number(query.categoriaId);
   if (query.soloStockBajo === 'true') filters.soloStockBajo = true;
 
-  const page  = Math.max(1, parseInt(query.page  ?? '1',  10));
+  const page = Math.max(1, parseInt(query.page ?? '1', 10));
   const limit = Math.min(100, Math.max(1, parseInt(query.limit ?? '50', 10)));
-  const skip  = (page - 1) * limit;
+  const skip = (page - 1) * limit;
 
   const { items, total } = await repo.findAllProductos(tenantId, filters, { page, limit, skip });
   return {
-    items:      items.map(p => serializeProducto(p as NonNullable<RawProducto>)),
+    items: items.map(p => serializeProducto(p as NonNullable<RawProducto>)),
     total,
     page,
     limit,
@@ -135,8 +135,8 @@ export async function getProducto(id: number, tenantId: number) {
 export async function createProducto(tenantId: number, body: unknown) {
   const b = body as Record<string, unknown>;
 
-  if (!b.codigo)      throw new ValidationError('El código es requerido');
-  if (!b.nombre)      throw new ValidationError('El nombre es requerido');
+  if (!b.codigo) throw new ValidationError('El código es requerido');
+  if (!b.nombre) throw new ValidationError('El nombre es requerido');
   if (!b.precioVenta) throw new ValidationError('El precio de venta es requerido');
 
   const precioVenta = Number(b.precioVenta);
@@ -153,15 +153,15 @@ export async function createProducto(tenantId: number, body: unknown) {
   }
 
   const p = await repo.createProducto(tenantId, {
-    codigo:        String(b.codigo).toUpperCase().trim(),
-    nombre:        String(b.nombre).trim(),
-    descripcion:   b.descripcion ? String(b.descripcion).trim() : undefined,
-    categoriaId:   b.categoriaId ? Number(b.categoriaId) : undefined,
+    codigo: String(b.codigo).toUpperCase().trim(),
+    nombre: String(b.nombre).trim(),
+    descripcion: b.descripcion ? String(b.descripcion).trim() : undefined,
+    categoriaId: b.categoriaId ? Number(b.categoriaId) : undefined,
     precioVenta,
     costoPromedio: b.costoPromedio ? Number(b.costoPromedio) : 0,
-    stockMinimo:   b.stockMinimo  ? Number(b.stockMinimo)   : 0,
-    stockInicial:  b.stockInicial ? Number(b.stockInicial)  : 0,
-    unidadMedida:  b.unidadMedida ? String(b.unidadMedida)  : 'UNIDAD',
+    stockMinimo: b.stockMinimo ? Number(b.stockMinimo) : 0,
+    stockInicial: b.stockInicial ? Number(b.stockInicial) : 0,
+    unidadMedida: b.unidadMedida ? String(b.unidadMedida) : 'UNIDAD',
   });
 
   // Si hay stock inicial, crear entrada en kardex
@@ -170,16 +170,16 @@ export async function createProducto(tenantId: number, body: unknown) {
     await prisma.barberKardex.create({
       data: {
         tenantId,
-        productoId:     p.id,
+        productoId: p.id,
         tipoMovimiento: 'ENTRADA',
-        referencia:     'STOCK_INICIAL',
-        cantidad:       stockInicial,
-        costoUnitario:  Number(p.costoPromedio),
-        costoTotal:     stockInicial * Number(p.costoPromedio),
-        stockAnterior:  0,
-        stockNuevo:     stockInicial,
-        notas:          'Stock inicial al crear el producto',
-        fecha:          new Date(),
+        referencia: 'STOCK_INICIAL',
+        cantidad: stockInicial,
+        costoUnitario: Number(p.costoPromedio),
+        costoTotal: stockInicial * Number(p.costoPromedio),
+        stockAnterior: 0,
+        stockNuevo: stockInicial,
+        notas: 'Stock inicial al crear el producto',
+        fecha: new Date(),
       },
     });
   }
@@ -206,17 +206,17 @@ export async function updateProducto(id: number, tenantId: number, body: unknown
     data.codigo = nuevoCodigo;
   }
 
-  if (b.nombre      !== undefined) data.nombre      = String(b.nombre).trim();
-  if (b.descripcion !== undefined) data.descripcion  = String(b.descripcion).trim();
-  if (b.categoriaId !== undefined) data.categoriaId  = b.categoriaId ? Number(b.categoriaId) : undefined;
+  if (b.nombre !== undefined) data.nombre = String(b.nombre).trim();
+  if (b.descripcion !== undefined) data.descripcion = String(b.descripcion).trim();
+  if (b.categoriaId !== undefined) data.categoriaId = b.categoriaId ? Number(b.categoriaId) : undefined;
   if (b.precioVenta !== undefined) {
     const pv = Number(b.precioVenta);
     if (isNaN(pv) || pv <= 0) throw new ValidationError('El precio de venta debe ser mayor a 0');
     data.precioVenta = pv;
   }
   if (b.costoPromedio !== undefined) data.costoPromedio = Number(b.costoPromedio);
-  if (b.stockMinimo   !== undefined) data.stockMinimo   = Number(b.stockMinimo);
-  if (b.unidadMedida  !== undefined) data.unidadMedida  = String(b.unidadMedida);
+  if (b.stockMinimo !== undefined) data.stockMinimo = Number(b.stockMinimo);
+  if (b.unidadMedida !== undefined) data.unidadMedida = String(b.unidadMedida);
 
   const updated = await repo.updateProducto(id, tenantId, data);
   return serializeProducto(updated);
@@ -233,9 +233,9 @@ export async function deactivateProducto(id: number, tenantId: number) {
 export async function searchProductos(tenantId: number, query: string) {
   const results = await repo.searchProductos(tenantId, query);
   return results.map(p => ({
-    id:          p.id,
-    codigo:      p.codigo,
-    nombre:      p.nombre,
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
     stockActual: Number(p.stockActual),
     unidadMedida: p.unidadMedida,
     precioVenta: Number(p.precioVenta),
@@ -255,7 +255,9 @@ export async function createCategoria(tenantId: number, body: unknown) {
   const nombre = String(b.nombre).trim();
   if (nombre.length < 2) throw new ValidationError('El nombre debe tener al menos 2 caracteres');
 
-  return repo.createCategoria(tenantId, nombre);
+  const color = b.color ? String(b.color) : 'blue';
+
+  return repo.createCategoria(tenantId, nombre, color);
 }
 
 // ── Kardex ──────────────────────────────────────────────────────────────────────
@@ -264,27 +266,27 @@ export async function getKardexProducto(productoId: number, tenantId: number, qu
   const p = await repo.findProductoById(productoId, tenantId);
   if (!p) throw new NotFoundError('Producto');
 
-  const page     = Math.max(1, parseInt(query.page  ?? '1',  10));
+  const page = Math.max(1, parseInt(query.page ?? '1', 10));
   const pageSize = Math.min(100, Math.max(1, parseInt(query.limit ?? '20', 10)));
   const { items, total } = await repo.getKardex(productoId, tenantId, page, pageSize);
 
   return {
-    items:     items.map(k => serializeKardex(k as unknown as RawKardex)),
+    items: items.map(k => serializeKardex(k as unknown as RawKardex)),
     total,
     page,
     pageSize,
     totalPages: Math.ceil(total / pageSize),
-    producto:  serializeProducto(p),
+    producto: serializeProducto(p),
   };
 }
 
 export async function getKardexGeneral(tenantId: number, query: Record<string, string> = {}) {
-  const page     = Math.max(1, parseInt(query.page  ?? '1',  10));
+  const page = Math.max(1, parseInt(query.page ?? '1', 10));
   const pageSize = Math.min(100, Math.max(1, parseInt(query.limit ?? '30', 10)));
   const { items, total } = await repo.getKardexGeneral(tenantId, page, pageSize);
 
   return {
-    items:     items.map(k => serializeKardex(k as unknown as RawKardex)),
+    items: items.map(k => serializeKardex(k as unknown as RawKardex)),
     total,
     page,
     pageSize,
@@ -327,7 +329,7 @@ export async function ajustarStock(id: number, tenantId: number, body: unknown) 
     cantidad,
     costoUnitario,
     referencia: String(b.referencia).trim(),
-    notas:      b.notas ? String(b.notas).trim() : undefined,
+    notas: b.notas ? String(b.notas).trim() : undefined,
   });
 
   return serializeProducto(updated);
