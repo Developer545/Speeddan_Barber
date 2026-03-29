@@ -659,7 +659,7 @@ export default function CxPClient({ initialList, initialResumen }: Props) {
                 {formatFecha(selected.fecha)}
               </Descriptions.Item>
               <Descriptions.Item label="Fecha vencimiento">
-                <span style={{ color: diasColor(selected.diasRestantes, selected.estadoCxP), fontWeight: 500 }}>
+                <span style={{ color: diasColor(selected.diasRestantes, selected.estadoCxP, { disabled: C.textDisabled, error: C.colorError, warning: C.colorWarning, success: C.colorSuccess }), fontWeight: 500 }}>
                   {formatFecha(selected.fechaVencimiento)}
                   {selected.estadoCxP !== 'PAGADA' && (
                     <span style={{ marginLeft: 8, fontSize: 11 }}>
