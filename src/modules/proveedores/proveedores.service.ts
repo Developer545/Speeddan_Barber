@@ -48,15 +48,15 @@ function parseInput(raw: Record<string, unknown>): ProveedorCreateInput {
   }
 
   return {
-    nombre:       String(raw.nombre).trim(),
-    nit:          raw.nit       ? String(raw.nit).trim()       : undefined,
-    nrc:          raw.nrc       ? String(raw.nrc).trim()       : undefined,
-    correo:       raw.correo    ? String(raw.correo).trim().toLowerCase() : undefined,
-    telefono:     raw.telefono  ? String(raw.telefono).trim()  : undefined,
+    nombre: String(raw.nombre).trim(),
+    nit: raw.nit ? String(raw.nit).trim() : undefined,
+    nrc: raw.nrc ? String(raw.nrc).trim() : undefined,
+    correo: raw.correo ? String(raw.correo).trim().toLowerCase() : undefined,
+    telefono: raw.telefono ? String(raw.telefono).trim() : undefined,
     tipo,
-    contacto:     raw.contacto  ? String(raw.contacto).trim()  : undefined,
+    contacto: raw.contacto ? String(raw.contacto).trim() : undefined,
     plazoCredito,
-    direccion:    raw.direccion ? String(raw.direccion).trim() : undefined,
+    direccion: raw.direccion ? String(raw.direccion).trim() : undefined,
   };
 }
 
@@ -104,11 +104,11 @@ export async function updateProveedorService(tenantId: number, id: number, raw: 
     update.nombre = String(rawData.nombre).trim();
   }
 
-  if (rawData.nit       !== undefined) update.nit       = rawData.nit       ? String(rawData.nit).trim()       : undefined;
-  if (rawData.nrc       !== undefined) update.nrc       = rawData.nrc       ? String(rawData.nrc).trim()       : undefined;
-  if (rawData.correo    !== undefined) update.correo    = rawData.correo    ? String(rawData.correo).trim().toLowerCase() : undefined;
-  if (rawData.telefono  !== undefined) update.telefono  = rawData.telefono  ? String(rawData.telefono).trim()  : undefined;
-  if (rawData.contacto  !== undefined) update.contacto  = rawData.contacto  ? String(rawData.contacto).trim()  : undefined;
+  if (rawData.nit !== undefined) update.nit = rawData.nit ? String(rawData.nit).trim() : undefined;
+  if (rawData.nrc !== undefined) update.nrc = rawData.nrc ? String(rawData.nrc).trim() : undefined;
+  if (rawData.correo !== undefined) update.correo = rawData.correo ? String(rawData.correo).trim().toLowerCase() : undefined;
+  if (rawData.telefono !== undefined) update.telefono = rawData.telefono ? String(rawData.telefono).trim() : undefined;
+  if (rawData.contacto !== undefined) update.contacto = rawData.contacto ? String(rawData.contacto).trim() : undefined;
   if (rawData.direccion !== undefined) update.direccion = rawData.direccion ? String(rawData.direccion).trim() : undefined;
 
   if (rawData.tipo !== undefined) {
@@ -147,7 +147,6 @@ export async function deactivateProveedorService(tenantId: number, id: number) {
 // ── Quick search ───────────────────────────────────────────────────────────
 
 export async function quickSearchProveedores(tenantId: number, query: string) {
-  if (!query || !query.trim()) return [];
   return searchProveedores(tenantId, query.trim(), 10);
 }
 

@@ -136,18 +136,18 @@ type LineaDetalle = {
 
 const TIPO_DOC_COLORS: Record<string, string> = {
   FACTURA: 'blue',
-  CCF:     'geekblue',
-  RECIBO:  'cyan',
-  TICKET:  'green',
-  NOTA:    'orange',
+  CCF: 'geekblue',
+  RECIBO: 'cyan',
+  TICKET: 'green',
+  NOTA: 'orange',
 };
 
 const TIPO_COMPRA_COLORS: Record<string, string> = {
-  PRODUCTO:       'blue',
+  PRODUCTO: 'blue',
   GASTO_SERVICIO: 'purple',
 };
 const TIPO_COMPRA_LABELS: Record<string, string> = {
-  PRODUCTO:       'Producto',
+  PRODUCTO: 'Producto',
   GASTO_SERVICIO: 'Gasto/Servicio',
 };
 
@@ -158,20 +158,20 @@ const CONDICION_COLORS: Record<string, string> = {
 
 const ESTADO_COLORS: Record<string, string> = {
   REGISTRADA: 'blue',
-  PAGADA:     'green',
-  ANULADA:    'red',
+  PAGADA: 'green',
+  ANULADA: 'red',
 };
 const ESTADO_LABELS: Record<string, string> = {
   REGISTRADA: 'Registrada',
-  PAGADA:     'Pagada',
-  ANULADA:    'Anulada',
+  PAGADA: 'Pagada',
+  ANULADA: 'Anulada',
 };
 
 const METODO_LABELS: Record<string, string> = {
-  CASH:     'Efectivo',
-  CARD:     'Tarjeta',
+  CASH: 'Efectivo',
+  CARD: 'Tarjeta',
   TRANSFER: 'Transferencia',
-  QR:       'QR',
+  QR: 'QR',
 };
 
 function formatDate(iso: string | null | undefined) {
@@ -197,13 +197,13 @@ function newLineaKey() {
 
 function emptyLinea(): LineaDetalle {
   return {
-    key:           newLineaKey(),
-    productoId:    null,
-    descripcion:   '',
-    cantidad:      1,
+    key: newLineaKey(),
+    productoId: null,
+    descripcion: '',
+    cantidad: 1,
     costoUnitario: 0,
-    descuento:     0,
-    subtotal:      0,
+    descuento: 0,
+    subtotal: 0,
   };
 }
 
@@ -211,7 +211,7 @@ function emptyLinea(): LineaDetalle {
 
 type Props = {
   initialCompras: Compra[];
-  initialStats:   Stats;
+  initialStats: Stats;
 };
 
 export default function ComprasClient({ initialCompras, initialStats }: Props) {
@@ -219,79 +219,79 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
   const primary = barberTheme.colorPrimary
   const { token } = theme.useToken()
   const C = {
-    bgPage:        'hsl(var(--bg-page))',
-    bgSurface:     'hsl(var(--bg-surface))',
-    bgSubtle:      'hsl(var(--bg-subtle))',
-    bgMuted:       'hsl(var(--bg-muted))',
-    bgPrimaryLow:  `${primary}18`,
-    textPrimary:   'hsl(var(--text-primary))',
+    bgPage: 'hsl(var(--bg-page))',
+    bgSurface: 'hsl(var(--bg-surface))',
+    bgSubtle: 'hsl(var(--bg-subtle))',
+    bgMuted: 'hsl(var(--bg-muted))',
+    bgPrimaryLow: `${primary}18`,
+    textPrimary: 'hsl(var(--text-primary))',
     textSecondary: 'hsl(var(--text-secondary))',
-    textMuted:     'hsl(var(--text-muted))',
-    textDisabled:  'hsl(var(--text-disabled))',
-    border:        'hsl(var(--border-default))',
-    borderStrong:  'hsl(var(--border-strong))',
-    colorSuccess:  token.colorSuccess,
-    colorSuccessBg:token.colorSuccessBg,
-    colorError:    token.colorError,
-    colorErrorBg:  token.colorErrorBg,
-    colorWarning:  token.colorWarning,
-    colorWarningBg:token.colorWarningBg,
-    colorInfo:     token.colorInfo,
-    colorInfoBg:   token.colorInfoBg,
+    textMuted: 'hsl(var(--text-muted))',
+    textDisabled: 'hsl(var(--text-disabled))',
+    border: 'hsl(var(--border-default))',
+    borderStrong: 'hsl(var(--border-strong))',
+    colorSuccess: token.colorSuccess,
+    colorSuccessBg: token.colorSuccessBg,
+    colorError: token.colorError,
+    colorErrorBg: token.colorErrorBg,
+    colorWarning: token.colorWarning,
+    colorWarningBg: token.colorWarningBg,
+    colorInfo: token.colorInfo,
+    colorInfoBg: token.colorInfoBg,
   }
 
   const [compras, setCompras] = useState<Compra[]>(initialCompras);
-  const [stats,   setStats]   = useState<Stats>(initialStats);
+  const [stats, setStats] = useState<Stats>(initialStats);
 
   // ── Filtros
-  const [search,        setSearch]        = useState('');
-  const [filterTipo,    setFilterTipo]    = useState<string | undefined>(undefined);
-  const [filterEstado,  setFilterEstado]  = useState<string | undefined>(undefined);
-  const [filterCond,    setFilterCond]    = useState<string | undefined>(undefined);
+  const [search, setSearch] = useState('');
+  const [filterTipo, setFilterTipo] = useState<string | undefined>(undefined);
+  const [filterEstado, setFilterEstado] = useState<string | undefined>(undefined);
+  const [filterCond, setFilterCond] = useState<string | undefined>(undefined);
 
   // ── Drawer detalle
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selected,   setSelected]   = useState<Compra | null>(null);
+  const [selected, setSelected] = useState<Compra | null>(null);
 
   // ── Modal anular desde drawer
-  const [anularOpen,   setAnularOpen]   = useState(false);
+  const [anularOpen, setAnularOpen] = useState(false);
   const [motivoAnular, setMotivoAnular] = useState('');
-  const [anulando,     setAnulando]     = useState(false);
+  const [anulando, setAnulando] = useState(false);
 
   // ── Pagos CxP
-  const [pagos,         setPagos]         = useState<PagoCxP[]>([]);
-  const [loadingPagos,  setLoadingPagos]  = useState(false);
+  const [pagos, setPagos] = useState<PagoCxP[]>([]);
+  const [loadingPagos, setLoadingPagos] = useState(false);
   const [pagoModalOpen, setPagoModalOpen] = useState(false);
-  const [savingPago,    setSavingPago]    = useState(false);
-  const [pagoMonto,     setPagoMonto]     = useState<number | null>(null);
-  const [pagoMetodo,    setPagoMetodo]    = useState('CASH');
+  const [savingPago, setSavingPago] = useState(false);
+  const [pagoMonto, setPagoMonto] = useState<number | null>(null);
+  const [pagoMetodo, setPagoMetodo] = useState('CASH');
   const [pagoReferencia, setPagoReferencia] = useState('');
-  const [pagoNotas,     setPagoNotas]     = useState('');
-  const [pagoError,     setPagoError]     = useState('');
+  const [pagoNotas, setPagoNotas] = useState('');
+  const [pagoError, setPagoError] = useState('');
 
   // ── Modal crear compra
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [guardando,    setGuardando]    = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [guardando, setGuardando] = useState(false);
 
   // Datos del encabezado de la nueva compra
-  const [nuevaTipoCompra,   setNuevaTipoCompra]   = useState<string>('PRODUCTO');
-  const [nuevoProveedorId,  setNuevoProveedorId]  = useState<number | null>(null);
-  const [nuevoNumDoc,       setNuevoNumDoc]       = useState('');
-  const [nuevoTipoDoc,      setNuevoTipoDoc]      = useState('FACTURA');
-  const [nuevaFecha,        setNuevaFecha]        = useState<dayjs.Dayjs>(dayjs());
-  const [nuevaCondicion,    setNuevaCondicion]    = useState<string>('CONTADO');
-  const [nuevaNotas,        setNuevaNotas]        = useState('');
+  const [nuevaTipoCompra, setNuevaTipoCompra] = useState<string>('PRODUCTO');
+  const [nuevoProveedorId, setNuevoProveedorId] = useState<number | null>(null);
+  const [nuevoNumDoc, setNuevoNumDoc] = useState('');
+  const [nuevoTipoDoc, setNuevoTipoDoc] = useState('FACTURA');
+  const [nuevaFecha, setNuevaFecha] = useState<dayjs.Dayjs>(dayjs());
+  const [nuevaCondicion, setNuevaCondicion] = useState<string>('CONTADO');
+  const [nuevaNotas, setNuevaNotas] = useState('');
 
   // Líneas de detalle
   const [lineas, setLineas] = useState<LineaDetalle[]>([emptyLinea()]);
 
   // Búsqueda async de proveedores
-  const [proveedores,       setProveedores]       = useState<Proveedor[]>([]);
-  const [buscandoProv,      setBuscandoProv]      = useState(false);
+  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [buscandoProv, setBuscandoProv] = useState(false);
 
   // Búsqueda async de productos
   const [productosBusqueda, setProductosBusqueda] = useState<Record<string, Producto[]>>({});
-  const [buscandoProd,      setBuscandoProd]      = useState<Record<string, boolean>>({});
+  const [buscandoProd, setBuscandoProd] = useState<Record<string, boolean>>({});
 
   // Error del formulario
   const [formError, setFormError] = useState('');
@@ -300,9 +300,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
 
   const filtered = useMemo(() => {
     let list = compras;
-    if (filterTipo)   list = list.filter(c => c.tipoCompra   === filterTipo);
-    if (filterEstado) list = list.filter(c => c.estado        === filterEstado);
-    if (filterCond)   list = list.filter(c => c.condicionPago === filterCond);
+    if (filterTipo) list = list.filter(c => c.tipoCompra === filterTipo);
+    if (filterEstado) list = list.filter(c => c.estado === filterEstado);
+    if (filterCond) list = list.filter(c => c.condicionPago === filterCond);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(c =>
@@ -317,8 +317,8 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
 
   const totalesModal = useMemo(() => {
     const subtotal = lineas.reduce((s, l) => s + l.subtotal, 0);
-    const iva      = parseFloat((subtotal * 0.13).toFixed(2));
-    const total    = parseFloat((subtotal + iva).toFixed(2));
+    const iva = parseFloat((subtotal * 0.13).toFixed(2));
+    const total = parseFloat((subtotal + iva).toFixed(2));
     return { subtotal, iva, total };
   }, [lineas]);
 
@@ -331,7 +331,6 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
   // ── Handlers: Proveedores ─────────────────────────────────────────────────
 
   const buscarProveedores = useCallback(async (q: string) => {
-    if (q.length < 2) return;
     setBuscandoProv(true);
     try {
       const res = await fetch(`/api/proveedores/buscar?q=${encodeURIComponent(q)}`);
@@ -370,12 +369,12 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     setLineas(prev =>
       prev.map(l => {
         if (l.key !== lineaKey) return l;
-        const costo    = prod.costoPromedio ?? 0;
+        const costo = prod.costoPromedio ?? 0;
         const subtotal = calcSubtotal(l.cantidad, costo, l.descuento);
         return {
           ...l,
-          productoId:    prod.id,
-          descripcion:   prod.nombre,
+          productoId: prod.id,
+          descripcion: prod.nombre,
           costoUnitario: costo,
           subtotal,
         };
@@ -472,13 +471,13 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     setSavingPago(true); setPagoError('');
     try {
       const res = await fetch(`/api/compras/${selected.id}/pagos`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          monto:      pagoMonto,
+        body: JSON.stringify({
+          monto: pagoMonto,
           metodoPago: pagoMetodo,
           referencia: pagoReferencia || null,
-          notas:      pagoNotas      || null,
+          notas: pagoNotas || null,
         }),
       });
       const json = await res.json();
@@ -504,9 +503,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
   async function handleAnularInline(compra: Compra, motivo = 'Sin motivo') {
     try {
       const res = await fetch(`/api/compras/${compra.id}/anular`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ motivo }),
+        body: JSON.stringify({ motivo }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -529,9 +528,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     setAnulando(true);
     try {
       const res = await fetch(`/api/compras/${selected.id}/anular`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ motivo: motivoAnular.trim() }),
+        body: JSON.stringify({ motivo: motivoAnular.trim() }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -578,30 +577,30 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     setGuardando(true);
     try {
       const payload = {
-        proveedorId:     nuevoProveedorId,
+        proveedorId: nuevoProveedorId,
         numeroDocumento: nuevoNumDoc.trim(),
-        tipoDocumento:   nuevoTipoDoc,
-        tipoCompra:      nuevaTipoCompra,
-        condicionPago:   nuevaCondicion,
-        fecha:           nuevaFecha.toISOString(),
-        subtotal:        totalesModal.subtotal,
-        iva:             totalesModal.iva,
-        total:           totalesModal.total,
-        notas:           nuevaNotas || null,
-        detalles:        lineas.map(l => ({
-          productoId:    nuevaTipoCompra === 'PRODUCTO' ? l.productoId : null,
-          descripcion:   l.descripcion || null,
-          cantidad:      l.cantidad,
+        tipoDocumento: nuevoTipoDoc,
+        tipoCompra: nuevaTipoCompra,
+        condicionPago: nuevaCondicion,
+        fecha: nuevaFecha.toISOString(),
+        subtotal: totalesModal.subtotal,
+        iva: totalesModal.iva,
+        total: totalesModal.total,
+        notas: nuevaNotas || null,
+        detalles: lineas.map(l => ({
+          productoId: nuevaTipoCompra === 'PRODUCTO' ? l.productoId : null,
+          descripcion: l.descripcion || null,
+          cantidad: l.cantidad,
           costoUnitario: l.costoUnitario,
-          descuento:     l.descuento,
-          subtotal:      l.subtotal,
+          descuento: l.descuento,
+          subtotal: l.subtotal,
         })),
       };
 
       const res = await fetch('/api/compras', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
 
@@ -657,7 +656,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
   const columns: ColumnsType<Compra> = [
     {
       title: '# Documento',
-      key:   'numDoc',
+      key: 'numDoc',
       width: 160,
       render: (_, r) => (
         <Text
@@ -670,7 +669,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Proveedor',
-      key:   'proveedor',
+      key: 'proveedor',
       render: (_, r) =>
         r.proveedor ? (
           <Text style={{ fontSize: 13 }}>{r.proveedor.nombre}</Text>
@@ -682,7 +681,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Tipo doc',
-      key:   'tipoDoc',
+      key: 'tipoDoc',
       width: 100,
       render: (_, r) => (
         <Tag color={TIPO_DOC_COLORS[r.tipoDocumento] ?? 'default'} style={{ fontSize: 11 }}>
@@ -692,7 +691,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Tipo compra',
-      key:   'tipoCompra',
+      key: 'tipoCompra',
       width: 140,
       render: (_, r) => (
         <Tag
@@ -706,7 +705,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Condición',
-      key:   'condicion',
+      key: 'condicion',
       width: 105,
       render: (_, r) => (
         <Tag color={CONDICION_COLORS[r.condicionPago] ?? 'default'} style={{ fontSize: 11 }}>
@@ -715,9 +714,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
       ),
     },
     {
-      title:      'Fecha',
-      key:        'fecha',
-      width:      110,
+      title: 'Fecha',
+      key: 'fecha',
+      width: 110,
       responsive: ['md'],
       render: (_, r) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
@@ -727,7 +726,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Subtotal',
-      key:   'subtotal',
+      key: 'subtotal',
       width: 95,
       align: 'right',
       responsive: ['lg'],
@@ -739,7 +738,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'IVA',
-      key:   'iva',
+      key: 'iva',
       width: 80,
       align: 'right',
       responsive: ['lg'],
@@ -751,7 +750,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Total',
-      key:   'total',
+      key: 'total',
       width: 100,
       align: 'right',
       render: (_, r) => (
@@ -770,7 +769,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Estado',
-      key:   'estado',
+      key: 'estado',
       width: 110,
       render: (_, r) => (
         <Tag color={ESTADO_COLORS[r.estado] ?? 'default'}>
@@ -780,7 +779,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Acciones',
-      key:   'acciones',
+      key: 'acciones',
       width: 100,
       fixed: 'right',
       render: (_, r) => (
@@ -824,7 +823,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
   const detalleColumns: ColumnsType<DetalleCompra> = [
     {
       title: 'Descripción / Producto',
-      key:   'desc',
+      key: 'desc',
       render: (_, d) => (
         <div>
           <div style={{ fontWeight: 500, fontSize: 13 }}>
@@ -840,7 +839,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Cant.',
-      key:   'cant',
+      key: 'cant',
       width: 70,
       align: 'right',
       render: (_, d) => (
@@ -849,7 +848,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Costo unit.',
-      key:   'costo',
+      key: 'costo',
       width: 95,
       align: 'right',
       render: (_, d) => (
@@ -860,7 +859,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Desc.%',
-      key:   'desc_pct',
+      key: 'desc_pct',
       width: 70,
       align: 'right',
       render: (_, d) => (
@@ -871,7 +870,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
     },
     {
       title: 'Subtotal',
-      key:   'subtotal',
+      key: 'subtotal',
       width: 95,
       align: 'right',
       render: (_, d) => (
@@ -955,7 +954,7 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
               value={filterTipo}
               onChange={v => setFilterTipo(v)}
               options={[
-                { value: 'PRODUCTO',       label: 'Producto' },
+                { value: 'PRODUCTO', label: 'Producto' },
                 { value: 'GASTO_SERVICIO', label: 'Gasto/Servicio' },
               ]}
             />
@@ -969,8 +968,8 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
               onChange={v => setFilterEstado(v)}
               options={[
                 { value: 'REGISTRADA', label: 'Registrada' },
-                { value: 'PAGADA',     label: 'Pagada' },
-                { value: 'ANULADA',    label: 'Anulada' },
+                { value: 'PAGADA', label: 'Pagada' },
+                { value: 'ANULADA', label: 'Anulada' },
               ]}
             />
           </Col>
@@ -1002,13 +1001,13 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           scroll={{ x: 1100 }}
           onRow={r => ({
             onClick: () => openDetail(r),
-            style:   { cursor: 'pointer' },
+            style: { cursor: 'pointer' },
           })}
           pagination={{
-            pageSize:        10,
+            pageSize: 10,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
-            showTotal:       (t, range) => `${range[0]}–${range[1]} de ${t} compras`,
+            showTotal: (t, range) => `${range[0]}–${range[1]} de ${t} compras`,
           }}
           locale={{
             emptyText: (
@@ -1126,10 +1125,10 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             {/* Totales */}
             <div
               style={{
-                background:   C.bgSubtle,
-                border:       `1px solid ${C.border}`,
+                background: C.bgSubtle,
+                border: `1px solid ${C.border}`,
                 borderRadius: 8,
-                padding:      '12px 16px',
+                padding: '12px 16px',
                 marginBottom: 16,
               }}
             >
@@ -1193,15 +1192,15 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                     style={{ marginBottom: 8 }}
                     columns={[
                       {
-                        title:  'Fecha',
-                        key:    'fecha',
-                        width:  100,
+                        title: 'Fecha',
+                        key: 'fecha',
+                        width: 100,
                         render: (_, p) => <Text style={{ fontSize: 12 }}>{formatDate(p.fecha)}</Text>,
                       },
                       {
-                        title:  'Método',
-                        key:    'metodo',
-                        width:  115,
+                        title: 'Método',
+                        key: 'metodo',
+                        width: 115,
                         render: (_, p) => (
                           <Tag style={{ fontSize: 11 }}>
                             {METODO_LABELS[p.metodoPago] ?? p.metodoPago}
@@ -1209,9 +1208,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                         ),
                       },
                       {
-                        title:  'Monto',
-                        key:    'monto',
-                        align:  'right',
+                        title: 'Monto',
+                        key: 'monto',
+                        align: 'right',
                         render: (_, p) => (
                           <Text strong style={{ color: primary, fontVariantNumeric: 'tabular-nums' }}>
                             {formatMoney(p.monto)}
@@ -1219,8 +1218,8 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                         ),
                       },
                       {
-                        title:  'Referencia',
-                        key:    'ref',
+                        title: 'Referencia',
+                        key: 'ref',
                         render: (_, p) => (
                           <Text type="secondary" style={{ fontSize: 11 }}>
                             {p.referencia ?? '—'}
@@ -1249,13 +1248,13 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             {selected.notas && (
               <div
                 style={{
-                  background:   C.colorWarningBg,
-                  border:       `1px solid ${C.colorWarning}40`,
+                  background: C.colorWarningBg,
+                  border: `1px solid ${C.colorWarning}40`,
                   borderRadius: 6,
-                  padding:      '8px 12px',
-                  fontSize:     12,
-                  color:        C.textPrimary,
-                  marginTop:    12,
+                  padding: '8px 12px',
+                  fontSize: 12,
+                  color: C.textPrimary,
+                  marginTop: 12,
                 }}
               >
                 <strong>Notas:</strong> {selected.notas}
@@ -1354,10 +1353,10 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                   value={pagoMetodo}
                   onChange={v => setPagoMetodo(v)}
                   options={[
-                    { value: 'CASH',     label: 'Efectivo' },
-                    { value: 'CARD',     label: 'Tarjeta' },
+                    { value: 'CASH', label: 'Efectivo' },
+                    { value: 'CARD', label: 'Tarjeta' },
                     { value: 'TRANSFER', label: 'Transferencia' },
-                    { value: 'QR',       label: 'QR' },
+                    { value: 'QR', label: 'QR' },
                   ]}
                 />
               </FormField>
@@ -1416,10 +1415,10 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           {/* ── SECCIÓN 1: CABECERA ── */}
           <div
             style={{
-              background:   C.bgSubtle,
-              border:       `1px solid ${C.border}`,
+              background: C.bgSubtle,
+              border: `1px solid ${C.border}`,
               borderRadius: 8,
-              padding:      '14px 16px',
+              padding: '14px 16px',
               marginBottom: 16,
             }}
           >
@@ -1478,10 +1477,10 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                     onChange={v => setNuevoTipoDoc(v)}
                     options={[
                       { value: 'FACTURA', label: 'Factura' },
-                      { value: 'CCF',     label: 'CCF' },
-                      { value: 'RECIBO',  label: 'Recibo' },
-                      { value: 'TICKET',  label: 'Ticket' },
-                      { value: 'NOTA',    label: 'Nota' },
+                      { value: 'CCF', label: 'CCF' },
+                      { value: 'RECIBO', label: 'Recibo' },
+                      { value: 'TICKET', label: 'Ticket' },
+                      { value: 'NOTA', label: 'Nota' },
                     ]}
                   />
                 </FormField>
@@ -1497,6 +1496,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                     allowClear
                     filterOption={false}
                     value={nuevoProveedorId ?? undefined}
+                    onFocus={() => {
+                      if (proveedores.length === 0) buscarProveedores('');
+                    }}
                     onSearch={buscarProveedores}
                     onChange={(v) => setNuevoProveedorId(v ?? null)}
                     notFoundContent={buscandoProv ? <Spin size="small" /> : 'Sin resultados'}
@@ -1540,9 +1542,9 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
           {/* ── SECCIÓN 2: DETALLES ── */}
           <div
             style={{
-              border:       `1px solid ${C.border}`,
+              border: `1px solid ${C.border}`,
               borderRadius: 8,
-              padding:      '14px 16px',
+              padding: '14px 16px',
               marginBottom: 16,
             }}
           >
@@ -1567,13 +1569,13 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             {/* Cabecera de columnas */}
             <div
               style={{
-                display:       'grid',
+                display: 'grid',
                 gridTemplateColumns: nuevaTipoCompra === 'PRODUCTO'
                   ? '2fr 1.4fr 0.7fr 0.9fr 0.7fr 0.9fr 32px'
                   : '2.5fr 0.7fr 0.9fr 0.7fr 0.9fr 32px',
                 gap: 6,
-                marginBottom:  4,
-                padding:       '0 4px',
+                marginBottom: 4,
+                padding: '0 4px',
               }}
             >
               {nuevaTipoCompra === 'PRODUCTO' && (
@@ -1591,13 +1593,13 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
               <div
                 key={linea.key}
                 style={{
-                  display:             'grid',
+                  display: 'grid',
                   gridTemplateColumns: nuevaTipoCompra === 'PRODUCTO'
                     ? '2fr 1.4fr 0.7fr 0.9fr 0.7fr 0.9fr 32px'
                     : '2.5fr 0.7fr 0.9fr 0.7fr 0.9fr 32px',
-                  gap:          6,
+                  gap: 6,
                   marginBottom: 8,
-                  alignItems:   'center',
+                  alignItems: 'center',
                 }}
               >
                 {/* Selector de producto (solo PRODUCTO) */}
@@ -1672,11 +1674,11 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
                   readOnly
                   value={formatMoney(linea.subtotal)}
                   style={{
-                    textAlign:          'right',
+                    textAlign: 'right',
                     fontVariantNumeric: 'tabular-nums',
-                    color:              primary,
-                    fontWeight:         600,
-                    background:         C.bgSubtle,
+                    color: primary,
+                    fontWeight: 600,
+                    background: C.bgSubtle,
                   }}
                 />
 
@@ -1712,10 +1714,10 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
             <Col xs={24} sm={10}>
               <div
                 style={{
-                  background:   C.bgPrimaryLow,
-                  border:       `1px solid ${primary}40`,
+                  background: C.bgPrimaryLow,
+                  border: `1px solid ${primary}40`,
                   borderRadius: 8,
-                  padding:      '12px 16px',
+                  padding: '12px 16px',
                 }}
               >
                 <Row justify="space-between" style={{ marginBottom: 4 }}>
@@ -1763,12 +1765,12 @@ export default function ComprasClient({ initialCompras, initialStats }: Props) {
         {/* Footer del modal */}
         <div
           style={{
-            display:        'flex',
+            display: 'flex',
             justifyContent: 'flex-end',
-            gap:            8,
-            marginTop:      20,
-            paddingTop:     16,
-            borderTop:      `1px solid ${C.border}`,
+            gap: 8,
+            marginTop: 20,
+            paddingTop: 16,
+            borderTop: `1px solid ${C.border}`,
           }}
         >
           <Button onClick={() => { setModalOpen(false); resetModal(); }}>
