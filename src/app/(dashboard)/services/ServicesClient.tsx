@@ -35,11 +35,13 @@ type Categoria = { id: number; nombre: string; color: string; activo: boolean };
 
 type Service = {
   id: number; name: string; description: string | null;
-  price: number; duration: number; category: string | null; active: boolean;
+  price: number; comisionBarbero: number;
+  duration: number; category: string | null; active: boolean;
 };
 
 type FormValues = {
   name: string; description: string; price: string;
+  comisionBarbero: string;
   duration: string; category: string; active: boolean;
 };
 
@@ -115,7 +117,7 @@ export default function ServicesClient({
   // ── Servicios: abrir modal crear ───────────────────────
   const handleNuevo = () => {
     setEditing(null);
-    reset({ name: '', description: '', price: '', duration: '', category: '', active: true });
+    reset({ name: '', description: '', price: '', comisionBarbero: '0', duration: '', category: '', active: true });
     setError('');
     setOpen(true);
   };
@@ -125,7 +127,8 @@ export default function ServicesClient({
     setEditing(s);
     reset({
       name: s.name, description: s.description ?? '',
-      price: String(s.price), duration: String(s.duration),
+      price: String(s.price), comisionBarbero: String(s.comisionBarbero ?? 0),
+      duration: String(s.duration),
       category: s.category ?? '', active: s.active,
     });
     setError('');
@@ -137,12 +140,13 @@ export default function ServicesClient({
     setSaving(true); setError('');
     try {
       const body = {
-        name:        values.name,
-        description: values.description || undefined,
-        price:       parseFloat(values.price),
-        duration:    parseInt(values.duration, 10),
-        category:    values.category || undefined,
-        active:      values.active,
+        name:           values.name,
+        description:    values.description || undefined,
+        price:          parseFloat(values.price),
+        comisionBarbero: parseFloat(values.comisionBarbero) || 0,
+        duration:       parseInt(values.duration, 10),
+        category:       values.category || undefined,
+        active:         values.active,
       };
       const url    = editing ? `/api/services/${editing.id}` : '/api/services';
       const method = editing ? 'PATCH' : 'POST';
@@ -247,9 +251,19 @@ export default function ServicesClient({
       title:     'Precio',
       dataIndex: 'price',
       key:       'price',
-      width:     100,
+      width:     90,
       align:     'right',
       render:    (v: number) => <Text strong style={{ fontVariantNumeric: 'tabular-nums' }}>${v.toFixed(2)}</Text>,
+    },
+    {
+      title:     'Comisión',
+      dataIndex: 'comisionBarbero',
+      key:       'comisionBarbero',
+      width:     90,
+      align:     'right',
+      render:    (v: number) => v > 0
+        ? <Text style={{ color: C.colorSuccess, fontVariantNumeric: 'tabular-nums' }}>${v.toFixed(2)}</Text>
+        : <Text type="secondary">—</Text>,
     },
     {
       title:     'Duración',
@@ -439,6 +453,9 @@ export default function ServicesClient({
                   <SdInput type="number" min="1" {...register('duration', { required: true })} placeholder="30" />
                 </FormField>
               </div>
+              <FormField label="Comisión barbero ($)" hint="Monto fijo que gana el barbero por cada vez que realiza este servicio">
+                <SdInput type="number" step="0.25" min="0" {...register('comisionBarbero')} placeholder="0.00" />
+              </FormField>
               <FormField label="Categoría">
                 <Select value={selectedCategory} onValueChange={v => setValue('category', v as string)}>
                   <SelectTrigger className="w-full">

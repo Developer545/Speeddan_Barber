@@ -206,6 +206,7 @@ export async function createVenta(
       subtotal: number
       esGravado: boolean
       ivaItem: number
+      comisionLinea?: number
     }>
     pagos: Array<{
       metodo: 'CASH' | 'CARD' | 'TRANSFER' | 'QR'
@@ -251,6 +252,7 @@ export async function createVenta(
             subtotal: d.subtotal,
             esGravado: d.esGravado,
             ivaItem: d.ivaItem,
+            comisionLinea: d.comisionLinea ?? 0,
           })),
         },
         pagos: {

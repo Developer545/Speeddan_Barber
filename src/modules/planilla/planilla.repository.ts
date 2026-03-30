@@ -126,6 +126,45 @@ export async function eliminarPlanilla(tenantId: number, id: number) {
   return prisma.barberPlanilla.delete({ where: { id } });
 }
 
+// ── Comisiones del período para barberos POR_SERVICIO ─────────────────────────
+export async function getComisionesBarberosPeriodo(tenantId: number, periodo: string) {
+  // periodo = "2025-03" (YYYY-MM)
+  const [year, month] = periodo.split('-').map(Number);
+  const desde = new Date(year, month - 1, 1);
+  const hasta = new Date(year, month, 1);
+
+  const detalles = await prisma.barberDetalleVenta.findMany({
+    where: {
+      barberoId: { not: null },
+      venta: { tenantId, estado: 'ACTIVA', createdAt: { gte: desde, lt: hasta } },
+    },
+    select: {
+      barberoId: true,
+      comisionLinea: true,
+      descripcion: true,
+      cantidad: true,
+    },
+  });
+
+  const mapa = new Map<number, { total: number; detalle: { desc: string; cant: number; comision: number }[] }>();
+  for (const d of detalles) {
+    const id = d.barberoId!;
+    const entry = mapa.get(id) ?? { total: 0, detalle: [] };
+    const com = Number(d.comisionLinea);
+    entry.total += com;
+    if (com > 0) {
+      entry.detalle.push({ desc: d.descripcion, cant: d.cantidad, comision: com });
+    }
+    mapa.set(id, entry);
+  }
+
+  return Array.from(mapa.entries()).map(([barberoId, v]) => ({
+    barberoId,
+    totalComision: parseFloat(v.total.toFixed(2)),
+    detalle: v.detalle,
+  }));
+}
+
 // ── Barberos activos con su config para generar planilla / prestaciones
 export async function getBarberosParaPlanilla(tenantId: number) {
   return prisma.barber.findMany({

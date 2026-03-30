@@ -75,13 +75,21 @@ export async function POST(req: NextRequest) {
     if (!config) continue;
 
     const unidades = input?.unidades ?? 0;
-    const salarioBruto = calcularSalarioBruto(
-      config.tipoPago,
-      config.salarioBase.toNumber(),
-      config.valorPorUnidad.toNumber(),
-      config.porcentajeServicio.toNumber(),
-      unidades
-    );
+    // Para barberos POR_SERVICIO sin tarifa configurada (valorPorUnidad=0, porcentajeServicio=0)
+    // las "unidades" enviadas desde el frontend representan directamente el total de comisión en $.
+    const esPorComision =
+      config.tipoPago === 'POR_SERVICIO' &&
+      config.valorPorUnidad.toNumber() === 0 &&
+      config.porcentajeServicio.toNumber() === 0;
+    const salarioBruto = esPorComision
+      ? Math.round(unidades * 100) / 100
+      : calcularSalarioBruto(
+          config.tipoPago,
+          config.salarioBase.toNumber(),
+          config.valorPorUnidad.toNumber(),
+          config.porcentajeServicio.toNumber(),
+          unidades
+        );
     if (salarioBruto <= 0) continue;
 
     const ded  = calcularDeduccionesEmpleado(salarioBruto, cfg, config.aplicaRenta);

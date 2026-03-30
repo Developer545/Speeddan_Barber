@@ -6,24 +6,25 @@
 import { NotFoundError, ValidationError } from '@/lib/errors';
 import * as repo from './services.repository';
 
+function serialize<T extends { price: { toNumber(): number }; comisionBarbero: { toNumber(): number } }>(s: T) {
+  return { ...s, price: s.price.toNumber(), comisionBarbero: s.comisionBarbero.toNumber() };
+}
+
 export async function listServices(tenantId: number) {
   const services = await repo.findAllServices(tenantId);
-  return services.map(s => ({
-    ...s,
-    price: s.price.toNumber(),
-  }));
+  return services.map(serialize);
 }
 
 export async function getService(id: number, tenantId: number) {
   const service = await repo.findServiceById(id, tenantId);
   if (!service) throw new NotFoundError('Servicio');
-  return { ...service, price: service.price.toNumber() };
+  return serialize(service);
 }
 
 export async function createService(tenantId: number, body: unknown) {
   const data = validateServiceBody(body);
   const created = await repo.createService(tenantId, data);
-  return { ...created, price: created.price.toNumber() };
+  return serialize(created);
 }
 
 export async function updateService(id: number, tenantId: number, body: unknown) {
@@ -32,7 +33,7 @@ export async function updateService(id: number, tenantId: number, body: unknown)
 
   const data = validateServiceBody(body, true);
   const updated = await repo.updateService(id, tenantId, data);
-  return { ...updated, price: updated.price.toNumber() };
+  return serialize(updated);
 }
 
 export async function removeService(id: number, tenantId: number) {
@@ -71,6 +72,7 @@ function validateServiceBody(body: unknown, partial = false) {
     name: b.name as string,
     description: b.description as string | undefined,
     price: b.price as number,
+    comisionBarbero: b.comisionBarbero !== undefined ? Number(b.comisionBarbero) : 0,
     duration: b.duration as number,
     category: b.category as string | undefined,
     active: b.active as boolean | undefined,

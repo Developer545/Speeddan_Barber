@@ -161,6 +161,18 @@ export async function createVenta(tenantId: number, input: CreateVentaInput) {
   })
   const barberMap = new Map(barbers.map(b => [b.id, b.user.fullName]))
 
+  // Calcular comisiones por línea
+  const comisionesPorItem: number[] = await Promise.all(input.items.map(async (item) => {
+    if (item.productoId) {
+      const prod = await prisma.barberProducto.findFirst({ where: { id: item.productoId, tenantId } })
+      return parseFloat((Number(prod?.precioComision ?? 0) * item.cantidad).toFixed(2))
+    } else if (item.servicioId) {
+      const svc = await prisma.barberService.findFirst({ where: { id: item.servicioId, tenantId } })
+      return parseFloat((Number(svc?.comisionBarbero ?? 0) * item.cantidad).toFixed(2))
+    }
+    return 0
+  }))
+
   // Calcular totales
   const dteItems: DTEItem[] = input.items.map((item, idx) => ({
     numItem: idx + 1,
@@ -227,6 +239,7 @@ export async function createVenta(tenantId: number, input: CreateVentaInput) {
       subtotal: parseFloat(sub.toFixed(2)),
       esGravado: dteItem.esGravado,
       ivaItem: dteItem.ivaItem,
+      comisionLinea: comisionesPorItem[idx] ?? 0,
     }
   })
 

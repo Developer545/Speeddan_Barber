@@ -118,6 +118,12 @@ export default function PlanillaClient({
   const [inputs,  setInputs]    = useState<Record<number, number>>({});
   const [generating, setGenerating] = useState(false);
 
+  // Comisiones POS del período
+  const [comisionesPOS, setComisionesPOS] = useState<
+    Array<{ barberoId: number; totalComision: number; detalle: { desc: string; cant: number; comision: number }[] }>
+  >([]);
+  const [loadingComisiones, setLoadingComisiones] = useState(false);
+
   // Form config barbero
   const [formConfig, setFormConfig] = useState<{
     tipoPago: string; salarioBase: number; valorPorUnidad: number;
@@ -164,6 +170,41 @@ export default function PlanillaClient({
     } finally { setLoadingPrest(false); }
   };
 
+  // ── Cargar comisiones POS cuando cambia el período ─
+  const handlePeriodoChange = async (d: ReturnType<typeof dayjs> | null) => {
+    const p = d ? d.format('YYYY-MM') : '';
+    setPeriodo(p);
+    setComisionesPOS([]);
+    if (!p) return;
+
+    // Auto-pre-fill barberos POR_SERVICIO con sus comisiones del período
+    const hayPorServicio = barberos.some(b => b.configurado && b.tipoPago === 'POR_SERVICIO');
+    if (!hayPorServicio) return;
+
+    setLoadingComisiones(true);
+    try {
+      const r = await fetch(`/api/planilla/comisiones?periodo=${p}`);
+      if (r.ok) {
+        const data = await r.json();
+        const lista = data.data as typeof comisionesPOS;
+        setComisionesPOS(lista);
+        // Pre-llenar inputs para barberos POR_SERVICIO
+        setInputs(prev => {
+          const next = { ...prev };
+          for (const barb of barberos) {
+            if (barb.configurado && barb.tipoPago === 'POR_SERVICIO') {
+              const com = lista.find(c => c.barberoId === barb.id);
+              if (com !== undefined) {
+                next[barb.id] = com.totalComision;
+              }
+            }
+          }
+          return next;
+        });
+      }
+    } finally { setLoadingComisiones(false); }
+  };
+
   // ── Generar planilla ───────────────────────────────
   const handleGenerar = async () => {
     if (!periodo) { toast.error('Selecciona el período'); return; }
@@ -182,7 +223,7 @@ export default function PlanillaClient({
       const data = await r.json();
       if (!r.ok) { toast.error(data.error || 'Error al generar planilla'); return; }
       toast.success(`Planilla ${periodo} generada`);
-      setModalNueva(false); setPeriodo(''); setInputs({});
+      setModalNueva(false); setPeriodo(''); setInputs({}); setComisionesPOS([]);
       await reload();
     } finally { setGenerating(false); }
   };
@@ -906,7 +947,7 @@ export default function PlanillaClient({
       {/* ── Modal: Nueva Planilla ── */}
       <Modal open={modalNueva}
         title={<span><CalendarOutlined /> Generar Nueva Planilla</span>}
-        onCancel={() => { setModalNueva(false); setPeriodo(''); setInputs({}); }}
+        onCancel={() => { setModalNueva(false); setPeriodo(''); setInputs({}); setComisionesPOS([]); }}
         onOk={handleGenerar} okText="Generar Planilla"
         confirmLoading={generating}
         okButtonProps={{ style: { background: '#0d9488', borderColor: '#0d9488' } }}
@@ -916,9 +957,17 @@ export default function PlanillaClient({
           <Text strong>Período:</Text>
           <div style={{ marginTop: 8 }}>
             <DatePicker picker="month" format="YYYY-MM" placeholder="Selecciona mes y año"
-              onChange={d => setPeriodo(d ? d.format('YYYY-MM') : '')} style={{ width: '100%' }} />
+              onChange={handlePeriodoChange} style={{ width: '100%' }} />
           </div>
         </div>
+        {loadingComisiones && (
+          <Alert type="info" showIcon style={{ marginBottom: 12 }}
+            message="Cargando comisiones del período desde POS..." />
+        )}
+        {!loadingComisiones && comisionesPOS.length > 0 && (
+          <Alert type="success" showIcon style={{ marginBottom: 12 }}
+            message={`Comisiones cargadas automáticamente desde POS — ${comisionesPOS.length} barbero(s) con comisiones`} />
+        )}
         <Divider>Barberos y Unidades Trabajadas</Divider>
         {barberos.length === 0 ? (
           <Alert type="warning" message="No hay barberos activos" />
@@ -933,17 +982,44 @@ export default function PlanillaClient({
               { title: 'Tipo', dataIndex: 'tipoPago', render: (v: string) => <Tag>{TIPO_PAGO_LABELS[v] || v}</Tag> },
               {
                 title: 'Base / Unidades',
-                render: (r: BarberoResumen) => r.tipoPago === 'FIJO'
-                  ? <Text type="secondary">Fijo: {fmt(r.salarioBase)}</Text>
-                  : <InputNumber placeholder={`N° ${TIPO_PAGO_UNIDAD[r.tipoPago!] || 'unidades'}`}
-                      min={0} precision={2} style={{ width: 160 }} value={inputs[r.id]}
-                      onChange={v => setInputs(prev => ({ ...prev, [r.id]: v ?? 0 }))} />,
+                render: (r: BarberoResumen) => {
+                  if (r.tipoPago === 'FIJO') return <Text type="secondary">Fijo: {fmt(r.salarioBase)}</Text>;
+                  const comPOS = comisionesPOS.find(c => c.barberoId === r.id);
+                  const isAutoFilled = r.tipoPago === 'POR_SERVICIO' && !!comPOS;
+                  return (
+                    <div>
+                      <InputNumber
+                        placeholder={r.tipoPago === 'POR_SERVICIO' ? '$ comisión total' : `N° ${TIPO_PAGO_UNIDAD[r.tipoPago!] || 'unidades'}`}
+                        min={0} precision={2}
+                        addonBefore={r.tipoPago === 'POR_SERVICIO' ? '$' : undefined}
+                        style={{ width: 180 }} value={inputs[r.id]}
+                        onChange={v => setInputs(prev => ({ ...prev, [r.id]: v ?? 0 }))}
+                      />
+                      {isAutoFilled && comPOS.detalle.length > 0 && (
+                        <Tooltip title={
+                          <div>
+                            <div style={{ fontWeight: 600, marginBottom: 4 }}>Desglose POS:</div>
+                            {comPOS.detalle.map((d, i) => (
+                              <div key={i}>{d.desc} ×{d.cant} = {fmt(d.comision)}</div>
+                            ))}
+                          </div>
+                        }>
+                          <Tag color="cyan" style={{ marginTop: 4, cursor: 'help', display: 'block' }}>
+                            Auto POS: {fmt(comPOS.totalComision)}
+                          </Tag>
+                        </Tooltip>
+                      )}
+                    </div>
+                  );
+                },
               },
               {
                 title: 'Bruto Est.',
                 render: (r: BarberoResumen) => {
                   let b = 0;
+                  const isPorServicioComision = r.tipoPago === 'POR_SERVICIO' && r.valorPorUnidad === 0 && r.porcentajeServicio === 0;
                   if (r.tipoPago === 'FIJO') b = r.salarioBase;
+                  else if (isPorServicioComision) b = inputs[r.id] ?? 0;
                   else if (r.tipoPago === 'POR_SERVICIO' && r.porcentajeServicio > 0)
                     b = (inputs[r.id] ?? 0) * (r.porcentajeServicio / 100);
                   else b = r.valorPorUnidad * (inputs[r.id] ?? 0);

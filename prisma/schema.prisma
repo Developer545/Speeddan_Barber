@@ -221,11 +221,12 @@ model BarberService {
   tenant      BarberTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  price       Decimal      @db.Decimal(10, 2)
-  duration    Int          // minutos
-  imageUrl    String?
-  category    String?      // "cabello" | "barba" | "combo" | "tratamiento"
-  active      Boolean      @default(true)
+  price           Decimal  @db.Decimal(10, 2)
+  comisionBarbero Decimal  @default(0) @db.Decimal(10, 2)
+  duration        Int      // minutos
+  imageUrl        String?
+  category        String?  // "cabello" | "barba" | "combo" | "tratamiento"
+  active          Boolean  @default(true)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -718,6 +719,7 @@ model BarberDetalleVenta {
   subtotal       Decimal         @db.Decimal(10, 2)
   esGravado      Boolean         @default(false)
   ivaItem        Decimal         @default(0) @db.Decimal(10, 2)
+  comisionLinea  Decimal         @default(0) @db.Decimal(10, 2)
 
   @@map("barber_detalles_venta")
 }
