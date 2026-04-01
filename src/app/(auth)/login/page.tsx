@@ -74,6 +74,22 @@ const DK = {
   btnHover:   'rgba(100,152,175,0.15)',
 };
 
+type BrandingConfig = {
+  brandName: string;
+  tagline: string;
+  features: { title: string; description: string }[];
+};
+
+const DEFAULT_BRANDING: BrandingConfig = {
+  brandName: 'Speeddan',
+  tagline: 'Sistema de gestión para barberías',
+  features: [
+    { title: 'Gestión de Citas', description: 'Agenda online en tiempo real' },
+    { title: 'Reportes y Caja', description: 'Control financiero completo' },
+    { title: 'Gestión de Clientes', description: 'Historial y fidelización' },
+  ],
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [step,     setStep]     = useState<Step>('empresa');
@@ -84,6 +100,13 @@ export default function LoginPage() {
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [branding, setBranding] = useState<BrandingConfig>(DEFAULT_BRANDING);
+
+  useEffect(() => {
+    fetch('/api/public/branding').then(r => r.ok ? r.json() : null).then(data => {
+      if (data) setBranding(data);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!tenant?.themeConfig) return;
@@ -223,52 +246,28 @@ export default function LoginPage() {
               <ScissorsIcon size={34} color="white" strokeWidth={1.5} />
             </div>
             <h1 style={{ fontSize: 42, fontWeight: 900, color: '#fff', margin: '0 0 8px', letterSpacing: '-1px', lineHeight: 1, textShadow: '0 2px 12px rgba(0,0,0,0.4)' }}>
-              Speeddan
+              {branding.brandName}
             </h1>
             <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.75)', margin: 0, fontWeight: 400 }}>
-              Sistema de gestión para barberías
+              {branding.tagline}
             </p>
           </div>
 
           {/* Cards flotantes */}
-          <div className="float-a" style={{ ...glassCard({ padding: '14px 20px', marginBottom: 14 }), display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CalendarIcon />
+          {[CalendarIcon, ChartIcon, UsersIcon].map((Icon, i) => (
+            <div key={i} className={['float-a', 'float-b', 'float-c'][i]} style={{ ...glassCard({ padding: '14px 20px', marginBottom: i < 2 ? 14 : 0 }), display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon />
+              </div>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>{branding.features[i]?.title ?? DEFAULT_BRANDING.features[i].title}</div>
+                <div style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12, marginTop: 2 }}>{branding.features[i]?.description ?? DEFAULT_BRANDING.features[i].description}</div>
+              </div>
+              <div style={{ marginLeft: 'auto', background: 'rgba(74,222,128,0.18)', border: '1px solid rgba(74,222,128,0.30)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#4ade80', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                Activo
+              </div>
             </div>
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>Gestión de Citas</div>
-              <div style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12, marginTop: 2 }}>Agenda online en tiempo real</div>
-            </div>
-            <div style={{ marginLeft: 'auto', background: 'rgba(74,222,128,0.18)', border: '1px solid rgba(74,222,128,0.30)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#4ade80', fontWeight: 700, whiteSpace: 'nowrap' }}>
-              Activo
-            </div>
-          </div>
-
-          <div className="float-b" style={{ ...glassCard({ padding: '14px 20px', marginBottom: 14 }), display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ChartIcon />
-            </div>
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>Reportes y Caja</div>
-              <div style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12, marginTop: 2 }}>Control financiero completo</div>
-            </div>
-            <div style={{ marginLeft: 'auto', background: 'rgba(74,222,128,0.18)', border: '1px solid rgba(74,222,128,0.30)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#4ade80', fontWeight: 700, whiteSpace: 'nowrap' }}>
-              Activo
-            </div>
-          </div>
-
-          <div className="float-c" style={{ ...glassCard({ padding: '14px 20px' }), display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <UsersIcon />
-            </div>
-            <div>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1.3 }}>Gestión de Clientes</div>
-              <div style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12, marginTop: 2 }}>Historial y fidelización</div>
-            </div>
-            <div style={{ marginLeft: 'auto', background: 'rgba(74,222,128,0.18)', border: '1px solid rgba(74,222,128,0.30)', borderRadius: 20, padding: '3px 10px', fontSize: 11, color: '#4ade80', fontWeight: 700, whiteSpace: 'nowrap' }}>
-              Activo
-            </div>
-          </div>
+          ))}
 
           {/* Badge footer */}
           <div style={{ textAlign: 'center', marginTop: 36 }}>

@@ -791,3 +791,18 @@ model BarberDayOverride {
   @@index([tenantId])
   @@map("barber_day_overrides")
 }
+
+
+// ══════════════════════════════════════════════════════
+// CONFIGURACIÓN GLOBAL — branding del login
+// ══════════════════════════════════════════════════════
+
+model BarberGlobalConfig {
+  id        Int      @id @default(1)
+  brandName String   @default("Speeddan")
+  tagline   String   @default("Sistema de gestión para barberías")
+  features  Json     @default("[{\"title\":\"Gestión de Citas\",\"description\":\"Agenda online en tiempo real\"},{\"title\":\"Reportes y Caja\",\"description\":\"Control financiero completo\"},{\"title\":\"Gestión de Clientes\",\"description\":\"Historial y fidelización\"}]")
+  updatedAt DateTime @updatedAt
+
+  @@map("barber_global_config")
+}
