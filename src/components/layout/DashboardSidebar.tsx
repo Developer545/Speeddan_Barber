@@ -53,6 +53,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/pos-documentos', label: 'Documentos',      icon: FileText,       roles: ['OWNER'] },
   { href: '/appointments',   label: 'Citas',           icon: CalendarDots,   roles: ['OWNER', 'BARBER', 'CLIENT'] },
   { href: '/billing',        label: 'Caja (Citas)',    icon: CreditCard,     roles: ['OWNER'] },
+  { href: '/loyalty',        label: 'Puntos y Tarjetas', icon: Star,         roles: ['OWNER'] },
   // ── Catálogos ──
   { href: '/barbers',        label: 'Barberos',        icon: Users,          roles: ['OWNER'] },
   { href: '/services',       label: 'Servicios',       icon: Scissors,       roles: ['OWNER'] },

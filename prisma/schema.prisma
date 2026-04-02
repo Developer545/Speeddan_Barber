@@ -114,6 +114,9 @@ model BarberTenant {
   correlativos  BarberCorrelativo[]
   dayOverrides  BarberDayOverride[]
 
+  // Módulo Loyalty
+  loyaltyTarjetas BarberLoyaltyTarjeta[]
+
   @@map("barber_tenants")
 }
 
@@ -618,6 +621,16 @@ enum BarberVentaEstado {
   ANULADA
 }
 
+enum LoyaltyTipo {
+  SELLOS
+  PUNTOS
+}
+
+enum LoyaltyEstado {
+  ACTIVA
+  PENDIENTE_CANJE
+}
+
 // Turno de caja — controla apertura/cierre y arqueo
 model BarberTurno {
   id                      Int               @id @default(autoincrement())
@@ -792,6 +805,44 @@ model BarberDayOverride {
   @@map("barber_day_overrides")
 }
 
+
+// ══════════════════════════════════════════════════════
+// MÓDULO LOYALTY — Puntos y Tarjetas de fidelización
+// ══════════════════════════════════════════════════════
+
+model BarberLoyaltyTarjeta {
+  id             Int            @id @default(autoincrement())
+  tenantId       Int
+  tenant         BarberTenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  codigo         String         // Código único impreso en tarjeta física (ej: "GOLD-001")
+  nombre         String         // Nombre descriptivo: "Tarjeta Cortes VIP"
+  tipo           LoyaltyTipo    // SELLOS | PUNTOS
+  meta           Int            // Objetivo: 10 sellos ó 100 puntos
+  dolarsPorPunto Decimal?       @db.Decimal(10, 2) // Solo PUNTOS: cuántos $ = 1 punto (ej: 5.00)
+  saldoActual    Int            @default(0)
+  estado         LoyaltyEstado  @default(ACTIVA)
+  createdAt      DateTime       @default(now())
+  movimientos    BarberLoyaltyMovimiento[]
+
+  @@unique([tenantId, codigo])
+  @@index([tenantId])
+  @@map("barber_loyalty_tarjetas")
+}
+
+model BarberLoyaltyMovimiento {
+  id         Int                  @id @default(autoincrement())
+  tenantId   Int
+  tarjetaId  Int
+  tarjeta    BarberLoyaltyTarjeta @relation(fields: [tarjetaId], references: [id], onDelete: Cascade)
+  ventaId    Int?                 // Venta POS que generó el movimiento
+  tipo       String               // ACUMULO | CANJE
+  cantidad   Int                  // +N al acumular, valor negativo al canjear
+  nota       String?
+  createdAt  DateTime             @default(now())
+
+  @@index([tarjetaId])
+  @@map("barber_loyalty_movimientos")
+}
 
 // ══════════════════════════════════════════════════════
 // CONFIGURACIÓN GLOBAL — branding del login

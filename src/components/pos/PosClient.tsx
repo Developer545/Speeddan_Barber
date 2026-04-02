@@ -124,6 +124,16 @@ export default function PosClient({
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
   const [busqueda, setBusqueda] = useState('')
 
+  // Loyalty
+  const [codigoTarjeta,  setCodigoTarjeta]  = useState('')
+  const [tarjetaInfo,    setTarjetaInfo]    = useState<{
+    id: number; codigo: string; nombre: string
+    tipo: 'SELLOS' | 'PUNTOS'; meta: number; saldoActual: number
+    estado: 'ACTIVA' | 'PENDIENTE_CANJE'; dolarsPorPunto?: number
+  } | null>(null)
+  const [loadingTarjeta, setLoadingTarjeta] = useState(false)
+  const [lineaGratis, setLineaGratis]       = useState<string | null>(null) // key de la línea con descuento 100%
+
   // ── Cargar datos ────────────────────────────────────────────────────────────
 
   const cargarTurno = useCallback(async () => {
@@ -343,6 +353,31 @@ export default function PosClient({
       if (!res.ok) throw new Error(data.error || 'Error al cobrar')
 
       setModalExito({ numero: data.venta.numero, total: data.venta.total, codigoGen: data.venta.codigoGeneracion, dte: data.dte || null })
+
+      // Loyalty: acumular o canjear
+      if (codigoTarjeta.trim() && tarjetaInfo) {
+        if (tarjetaInfo.estado === 'PENDIENTE_CANJE') {
+          await fetch(`/api/loyalty/tarjetas/${codigoTarjeta.toUpperCase()}/canjear`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nota: `Canje en venta #${data.venta.numero}` }),
+          })
+        } else {
+          const acumRes = await fetch(`/api/loyalty/tarjetas/${codigoTarjeta.toUpperCase()}/acumular`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ventaId: data.venta.id, totalVenta: subtotal }),
+          })
+          const acumJson = await acumRes.json()
+          if (acumJson.data?.completada) {
+            toast.success('🎉 ¡Tarjeta completa! El cliente ganó su premio en la próxima visita.')
+          }
+        }
+        setCodigoTarjeta('')
+        setTarjetaInfo(null)
+        setLineaGratis(null)
+      }
+
       setLineas([])
       setPagos([{ key: '1', metodo: 'CASH', monto: 0 }])
       setConFactura(false)
@@ -355,6 +390,44 @@ export default function PosClient({
       toast.error(e.message)
     } finally {
       setLoadingCobrar(false)
+    }
+  }
+
+  // ── Tarjeta de fidelización ─────────────────────────────────────────────────
+
+  const buscarTarjeta = useCallback(async (codigo: string) => {
+    const c = codigo.trim().toUpperCase()
+    if (!c) { setTarjetaInfo(null); return }
+    setLoadingTarjeta(true)
+    try {
+      const res = await fetch(`/api/loyalty/tarjetas/${c}`)
+      if (res.ok) {
+        const json = await res.json()
+        setTarjetaInfo(json.data)
+        if (json.data.estado === 'PENDIENTE_CANJE') {
+          toast.success(`🎉 ¡Tarjeta completa! El cliente ganó su premio.`)
+        }
+      } else {
+        setTarjetaInfo(null)
+        toast.error('Código de tarjeta no encontrado')
+      }
+    } finally { setLoadingTarjeta(false) }
+  }, [])
+
+  const darLineaGratis = (key: string) => {
+    if (lineaGratis === key) {
+      // Toggle off: quitar descuento
+      setLineaGratis(null)
+      setLineas(prev => prev.map(l => l.key === key ? { ...l, descuento: 0 } : l))
+    } else {
+      // Quitar descuento anterior
+      if (lineaGratis) {
+        setLineas(prev => prev.map(l => l.key === lineaGratis ? { ...l, descuento: 0 } : l))
+      }
+      setLineaGratis(key)
+      setLineas(prev => prev.map(l =>
+        l.key === key ? { ...l, descuento: l.precioUnitario * l.cantidad } : l
+      ))
     }
   }
 
@@ -784,6 +857,20 @@ export default function PosClient({
                           {fmt(l.precioUnitario * l.cantidad - l.descuento)}
                         </span>
                       </Col>
+                      {tarjetaInfo?.estado === 'PENDIENTE_CANJE' && (
+                        <Col flex="28px">
+                          <Tooltip title={lineaGratis === l.key ? 'Quitar gratis' : 'Dar gratis'}>
+                            <Button
+                              size="small"
+                              type={lineaGratis === l.key ? 'primary' : 'dashed'}
+                              style={{ padding: '0 4px', fontSize: 12 }}
+                              onClick={() => darLineaGratis(l.key)}
+                            >
+                              🎁
+                            </Button>
+                          </Tooltip>
+                        </Col>
+                      )}
                       <Col flex="28px">
                         <Button size="small" type="text" danger icon={<DeleteOutlined />}
                           onClick={() => removeLinea(l.key)} />
@@ -1093,6 +1180,40 @@ export default function PosClient({
                   </Row>
                   <Alert type="info" showIcon style={{ marginTop: 8, fontSize: 11 }}
                     message="Modo simulación activo — El documento se guardará como JSON pero no se envía al MH" />
+                </Card>
+              )}
+            </div>
+
+            {/* Tarjeta de fidelización */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4, fontWeight: 600 }}>
+                🎴 Código de tarjeta (opcional)
+              </div>
+              <Input.Search
+                placeholder="Ej: GOLD-001"
+                value={codigoTarjeta}
+                onChange={e => { setCodigoTarjeta(e.target.value.toUpperCase()); if (!e.target.value) setTarjetaInfo(null) }}
+                onSearch={buscarTarjeta}
+                enterButton="Buscar"
+                loading={loadingTarjeta}
+                size="small"
+                allowClear
+                onClear={() => { setTarjetaInfo(null); setLineaGratis(null) }}
+              />
+              {tarjetaInfo && (
+                <Card size="small" style={{ marginTop: 6, background: tarjetaInfo.estado === 'PENDIENTE_CANJE' ? '#fff7e6' : C.bgPrimaryLow, borderColor: tarjetaInfo.estado === 'PENDIENTE_CANJE' ? '#faad14' : `${primary}40` }}>
+                  <div style={{ fontWeight: 600, fontSize: 12 }}>
+                    {tarjetaInfo.codigo} — {tarjetaInfo.nombre}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.textSecondary, marginTop: 2 }}>
+                    {tarjetaInfo.tipo === 'SELLOS' ? '🔖 Sellos' : '⭐ Puntos'}:
+                    {' '}{tarjetaInfo.saldoActual}/{tarjetaInfo.meta}
+                  </div>
+                  {tarjetaInfo.estado === 'PENDIENTE_CANJE' && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: '#d46b08', fontWeight: 600 }}>
+                      🎉 ¡Tarjeta completa! Selecciona qué línea es gratis:
+                    </div>
+                  )}
                 </Card>
               )}
             </div>
