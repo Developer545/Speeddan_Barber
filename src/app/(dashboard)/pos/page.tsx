@@ -39,6 +39,7 @@ export default async function PosPage() {
   }))
   const productos = productosDB.map(p => ({
     id: p.id,
+    codigo: p.codigo,
     nombre: p.nombre,
     precio: Number(p.precioVenta),
     stock: Number(p.stockActual),

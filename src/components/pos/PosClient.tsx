@@ -18,7 +18,7 @@ import { useBarberTheme } from '@/context/ThemeContext'
 
 interface Barbero { id: number; nombre: string }
 interface Servicio { id: number; name: string; price: number; category?: string }
-interface Producto { id: number; nombre: string; precio: number; stock: number; stockMinimo: number; categoria: string; unidad: string }
+interface Producto { id: number; codigo: string; nombre: string; precio: number; stock: number; stockMinimo: number; categoria: string; unidad: string }
 interface LineaVenta {
   key: string
   barberoId: number | null
@@ -456,14 +456,27 @@ export default function PosClient({
                 </div>
               </div>
 
-              {/* Buscador */}
+              {/* Buscador — compatible con pistola de código de barras */}
               <Input
                 size="small"
-                placeholder="Buscar servicio o producto..."
+                placeholder="Buscar o escanear código de barras..."
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 allowClear
+                autoFocus
                 style={{ marginBottom: 8 }}
+                onPressEnter={() => {
+                  const q = busqueda.trim().toLowerCase()
+                  if (!q) return
+                  // Coincidencia exacta por código → agregar directamente
+                  const exact = productosProp.find(p => p.codigo.toLowerCase() === q)
+                  if (exact) { selectProductoRapido(exact); setBusqueda(''); return }
+                  // Un solo resultado (nombre o código parcial) → agregar
+                  const parcial = productosProp.filter(p =>
+                    p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q)
+                  )
+                  if (parcial.length === 1) { selectProductoRapido(parcial[0]); setBusqueda('') }
+                }}
               />
 
               {(() => {
@@ -483,7 +496,10 @@ export default function PosClient({
                     : categoriaActiva === 'todos' ? serviciosProp : serviciosProp.filter(s => (s.category || 'otro') === categoriaActiva)
 
                 const productosFiltrados = q
-                  ? productosProp.filter(p => p.nombre.toLowerCase().includes(q))
+                  ? productosProp.filter(p =>
+                      p.nombre.toLowerCase().includes(q) ||
+                      p.codigo.toLowerCase().includes(q)
+                    )
                   : esProductosTab ? productosProp : []
 
                 // En búsqueda activa mostramos ambos grupos

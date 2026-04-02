@@ -1005,12 +1005,24 @@ export default function InventarioClient({
                   <Row gutter={[8, 8]} align="middle" style={{ marginBottom: 14 }}>
                     <Col flex="1">
                       <Input.Search
-                        placeholder="Buscar por nombre, código..."
+                        placeholder="Buscar o escanear código de barras..."
                         allowClear
                         prefix={<SearchOutlined />}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         style={{ maxWidth: 340 }}
+                        onSearch={val => {
+                          const q = val.trim().toLowerCase()
+                          if (!q) return
+                          // Coincidencia exacta por código → abrir kardex directo
+                          const exact = productos.find(p => p.codigo.toLowerCase() === q)
+                          if (exact) { openKardex(exact); setSearch(''); return }
+                          // Un solo resultado parcial → abrir ese
+                          const parcial = productos.filter(p =>
+                            p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q)
+                          )
+                          if (parcial.length === 1) { openKardex(parcial[0]); setSearch('') }
+                        }}
                       />
                     </Col>
                     <Col>
