@@ -8,7 +8,7 @@ import {
 import {
   PlusOutlined, DeleteOutlined, FileTextOutlined, CheckCircleOutlined,
   ReloadOutlined, PrinterOutlined, FileDoneOutlined,
-  AppstoreOutlined, UnorderedListOutlined,
+  AppstoreOutlined, UnorderedListOutlined, ShoppingCartOutlined,
 } from '@ant-design/icons'
 import { toast } from 'sonner'
 import { abrirFacturaCompleta, abrirTicket, type DTEJsonViewer } from '@/lib/dte-viewer'
@@ -486,9 +486,9 @@ export default function PosClient({
         </Row>
       </Card>
 
-      <Row gutter={12}>
-        {/* ── Columna izquierda: POS ── */}
-        <Col xs={24} lg={14}>
+      <Row gutter={[12, 12]}>
+        {/* ── Columna izquierda: Barbero + Catálogo ── */}
+        <Col xs={24} lg={15}>
           <Card title={<span>🛒 Nueva Venta</span>} size="small" style={{ marginBottom: 12 }}>
 
             {/* ── Selector de barbero activo ── */}
@@ -785,123 +785,183 @@ export default function PosClient({
               })()}
             </div>
 
-            <Divider style={{ margin: '8px 0' }} />
+            {/* cierre de catalog */}
+          </Card>
+        </Col>
 
-            {/* Tabla de líneas */}
-            {lineas.length === 0 ? (
-              <div style={{ textAlign: 'center', color: C.textDisabled, padding: '20px 0' }}>
-                Toca un servicio o producto para agregar líneas
-              </div>
-            ) : (
-              <div style={{ marginBottom: 8 }}>
-                {lineas.map((l, idx) => (
-                  <Card key={l.key} size="small" style={{ marginBottom: 6, background: C.bgSubtle }}>
-                    {/* Fila 1: número + barbero + servicio/producto */}
-                    <Row gutter={6} align="middle" style={{ marginBottom: 4 }}>
-                      <Col flex="20px">
-                        <span style={{ color: C.textMuted, fontSize: 11 }}>{idx + 1}</span>
-                      </Col>
-                      <Col flex="1">
-                        <Select
-                          size="small"
-                          placeholder={l.esProducto ? 'Sin barbero (producto)' : 'Barbero *'}
-                          style={{ width: '100%' }}
-                          allowClear={l.esProducto}
-                          value={l.barberoId}
-                          onChange={v => {
-                            const b = barberosProp.find(b => b.id === v)
-                            updateLinea(l.key, 'barberoId', v ?? null)
-                            if (b) updateLinea(l.key, 'barberoNombre', b.nombre)
-                            else updateLinea(l.key, 'barberoNombre', '')
-                          }}
-                          options={barberosProp.map(b => ({ value: b.id, label: '✂️ ' + b.nombre }))}
-                        />
-                      </Col>
-                      <Col flex="1">
-                        {l.esProducto ? (
+        {/* ── Columna derecha: Carrito + Cobro ── */}
+        <Col xs={24} lg={9}>
+          <div style={{ position: 'sticky', top: 12 }}>
+            <Card
+              size="small"
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Space>
+                    <ShoppingCartOutlined />
+                    <span style={{ fontWeight: 700 }}>Carrito</span>
+                    {lineas.length > 0 && (
+                      <span style={{
+                        background: primary, color: '#fff', borderRadius: 10,
+                        padding: '0 7px', fontSize: 11, fontWeight: 700,
+                      }}>{lineas.length}</span>
+                    )}
+                  </Space>
+                  {lineas.length > 0 && (
+                    <Button size="small" type="text" danger onClick={() => { setLineas([]); setLineaGratis(null) }}>
+                      Limpiar
+                    </Button>
+                  )}
+                </div>
+              }
+            >
+              {/* ── Líneas del carrito ── */}
+              {lineas.length === 0 ? (
+                <div style={{ textAlign: 'center', color: C.textDisabled, padding: '28px 0' }}>
+                  <ShoppingCartOutlined style={{ fontSize: 36, marginBottom: 8, display: 'block' }} />
+                  <div style={{ fontSize: 13 }}>Toca un servicio o producto</div>
+                  <div style={{ fontSize: 11, marginTop: 4 }}>para agregar al carrito</div>
+                </div>
+              ) : (
+                <div style={{ marginBottom: 4 }}>
+                  {lineas.map((l, idx) => (
+                    <div key={l.key} style={{
+                      padding: '8px 0',
+                      borderBottom: `1px solid ${C.border}`,
+                      background: lineaGratis === l.key ? '#f6ffed' : 'transparent',
+                      borderRadius: lineaGratis === l.key ? 4 : 0,
+                    }}>
+                      {/* Fila 1: número + descripción + subtotal */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                        <span style={{
+                          width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 2,
+                          background: C.bgMuted, color: C.textMuted, fontSize: 10, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>{idx + 1}</span>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {/* Descripción */}
+                          <div style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {l.descripcion || (l.esProducto ? '📦 Producto' : '✂️ Servicio')}
+                            </span>
+                            {lineaGratis === l.key && (
+                              <Tag color="success" style={{ fontSize: 10, marginInlineEnd: 0 }}>GRATIS 🎁</Tag>
+                            )}
+                          </div>
+
+                          {/* Barbero select */}
                           <Select
-                            size="small" showSearch placeholder="Producto" style={{ width: '100%' }}
-                            value={l.productoId}
-                            onChange={v => updateLinea(l.key, 'productoId', v)}
-                            options={productosProp.map(p => ({ value: p.id, label: `📦 ${p.nombre} (${p.stock} ${p.unidad.toLowerCase()})` }))}
+                            size="small"
+                            placeholder={l.esProducto ? 'Sin barbero (opcional)' : '✂️ Asignar barbero'}
+                            style={{ width: '100%', marginTop: 4 }}
+                            allowClear={l.esProducto}
+                            value={l.barberoId ?? undefined}
+                            onChange={v => {
+                              const b = barberosProp.find(b => b.id === v)
+                              updateLinea(l.key, 'barberoId', v ?? null)
+                              updateLinea(l.key, 'barberoNombre', b?.nombre ?? '')
+                            }}
+                            options={barberosProp.map(b => ({ value: b.id, label: b.nombre }))}
                           />
-                        ) : (
-                          <Select
-                            size="small" showSearch placeholder="Servicio" style={{ width: '100%' }}
-                            value={l.servicioId}
-                            onChange={v => updateLinea(l.key, 'servicioId', v)}
-                            options={serviciosProp.map(s => ({ value: s.id, label: s.name + ' ' + fmt(s.price) }))}
-                          />
-                        )}
-                      </Col>
-                    </Row>
-                    {/* Fila 2: cantidad + precio + descuento + total + borrar */}
-                    <Row gutter={6} align="middle">
-                      <Col flex="20px" />
-                      <Col flex="70px">
+
+                          {/* Service/product select — solo si no tiene item asignado todavía */}
+                          {!l.servicioId && !l.productoId && (
+                            l.esProducto ? (
+                              <Select size="small" showSearch placeholder="Buscar producto…"
+                                style={{ width: '100%', marginTop: 4 }}
+                                value={l.productoId ?? undefined}
+                                onChange={v => updateLinea(l.key, 'productoId', v)}
+                                options={productosProp.map(p => ({ value: p.id, label: `${p.nombre}` }))}
+                              />
+                            ) : (
+                              <Select size="small" showSearch placeholder="Buscar servicio…"
+                                style={{ width: '100%', marginTop: 4 }}
+                                value={l.servicioId ?? undefined}
+                                onChange={v => updateLinea(l.key, 'servicioId', v)}
+                                options={serviciosProp.map(s => ({ value: s.id, label: `${s.name} — ${fmt(s.price)}` }))}
+                              />
+                            )
+                          )}
+                        </div>
+
+                        {/* Precio + subtotal */}
+                        <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 58 }}>
+                          <div style={{
+                            color: l.descuento > 0 ? '#52c41a' : primary,
+                            fontWeight: 700, fontSize: 14,
+                          }}>
+                            {fmt(l.precioUnitario * l.cantidad - l.descuento)}
+                          </div>
+                          {l.cantidad > 1 && (
+                            <div style={{ fontSize: 10, color: C.textMuted }}>
+                              {fmt(l.precioUnitario)} c/u
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Fila 2: controles qty + precio editable + acciones */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, paddingLeft: 24 }}>
+                        {/* Qty − N + */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <button
+                            onClick={() => updateLinea(l.key, 'cantidad', Math.max(1, l.cantidad - 1))}
+                            style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${C.border}`, background: C.bgSurface, cursor: 'pointer', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textSecondary }}
+                          >−</button>
+                          <span style={{ minWidth: 24, textAlign: 'center', fontSize: 13, fontWeight: 700 }}>{l.cantidad}</span>
+                          <button
+                            onClick={() => updateLinea(l.key, 'cantidad', l.cantidad + 1)}
+                            style={{ width: 22, height: 22, borderRadius: 4, border: `1px solid ${C.border}`, background: C.bgSurface, cursor: 'pointer', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textSecondary }}
+                          >+</button>
+                        </div>
+
+                        {/* Precio unitario editable */}
                         <InputNumber
-                          size="small" style={{ width: '100%' }}
-                          addonBefore="×"
-                          value={l.cantidad} min={1} precision={0}
-                          onChange={v => updateLinea(l.key, 'cantidad', v || 1)}
-                        />
-                      </Col>
-                      <Col flex="1">
-                        <InputNumber
-                          size="small" prefix="$" style={{ width: '100%' }}
+                          size="small" prefix="$" style={{ flex: 1, minWidth: 0 }}
                           value={l.precioUnitario} min={0} precision={2}
                           onChange={v => updateLinea(l.key, 'precioUnitario', v || 0)}
                         />
-                      </Col>
-                      <Col flex="1">
-                        <InputNumber
-                          size="small" prefix="$" placeholder="Desc." style={{ width: '100%' }}
-                          value={l.descuento || undefined} min={0} precision={2}
-                          onChange={v => updateLinea(l.key, 'descuento', v || 0)}
-                        />
-                      </Col>
-                      <Col style={{ textAlign: 'right', minWidth: 60 }}>
-                        <span style={{ fontWeight: 700, color: primary, fontSize: 13 }}>
-                          {fmt(l.precioUnitario * l.cantidad - l.descuento)}
-                        </span>
-                      </Col>
-                      {tarjetaInfo?.estado === 'PENDIENTE_CANJE' && (
-                        <Col flex="28px">
-                          <Tooltip title={lineaGratis === l.key ? 'Quitar gratis' : 'Dar gratis'}>
-                            <Button
-                              size="small"
-                              type={lineaGratis === l.key ? 'primary' : 'dashed'}
-                              style={{ padding: '0 4px', fontSize: 12 }}
-                              onClick={() => darLineaGratis(l.key)}
-                            >
-                              🎁
-                            </Button>
+
+                        {/* Botón gratis (loyalty) */}
+                        {tarjetaInfo?.estado === 'PENDIENTE_CANJE' && (
+                          <Tooltip title={lineaGratis === l.key ? 'Quitar regalo' : 'Marcar gratis'}>
+                            <button onClick={() => darLineaGratis(l.key)} style={{
+                              padding: '2px 6px', borderRadius: 4, fontSize: 11, cursor: 'pointer',
+                              border: lineaGratis === l.key ? `2px solid #52c41a` : `1.5px solid ${C.border}`,
+                              background: lineaGratis === l.key ? '#f6ffed' : C.bgSurface,
+                              color: lineaGratis === l.key ? '#52c41a' : C.textMuted, fontWeight: 600,
+                            }}>🎁</button>
                           </Tooltip>
-                        </Col>
-                      )}
-                      <Col flex="28px">
-                        <Button size="small" type="text" danger icon={<DeleteOutlined />}
-                          onClick={() => removeLinea(l.key)} />
-                      </Col>
-                    </Row>
-                  </Card>
-                ))}
+                        )}
+
+                        {/* Eliminar */}
+                        <button onClick={() => removeLinea(l.key)} style={{
+                          width: 24, height: 24, borderRadius: 4, border: 'none',
+                          background: 'transparent', color: '#ff4d4f', cursor: 'pointer',
+                          fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>×</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button type="dashed" size="small" block icon={<PlusOutlined />} onClick={addLinea} style={{ marginTop: 8, marginBottom: 12 }}>
+                Agregar línea manual
+              </Button>
+
+              <Divider style={{ margin: '8px 0' }} />
+
+              {/* Total prominente */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: lineas.length > 0 ? `${primary}12` : C.bgSubtle,
+                border: `1.5px solid ${lineas.length > 0 ? `${primary}50` : C.border}`,
+                borderRadius: 10, padding: '10px 16px', marginBottom: 12,
+              }}>
+                <span style={{ color: C.textSecondary, fontSize: 14 }}>Total</span>
+                <span style={{ color: primary, fontSize: 28, fontWeight: 800 }}>{fmt(subtotal)}</span>
               </div>
-            )}
-
-            <Button type="dashed" block icon={<PlusOutlined />} onClick={addLinea} style={{ marginBottom: 12 }}>
-              Agregar línea
-            </Button>
-
-            <Divider style={{ margin: '8px 0' }} />
-
-            {/* Total */}
-            <Row justify="end" style={{ marginBottom: 12 }}>
-              <Col>
-                <Statistic title="Total" value={subtotal} precision={2} prefix="$"
-                  valueStyle={{ color: primary, fontSize: 28, fontWeight: 700 }} />
-              </Col>
-            </Row>
 
             {/* ── Sección de cobro ── */}
             {(() => {
@@ -1262,76 +1322,12 @@ export default function PosClient({
               loading={loadingCobrar}
               disabled={lineas.length === 0 || !pagoCompleto}
               onClick={cobrar}
-              style={{ height: 48, fontSize: 16, fontWeight: 700 }}
+              style={{ height: 52, fontSize: 16, fontWeight: 800, marginTop: 4 }}
             >
               ✅ COBRAR {subtotal > 0 ? fmt(subtotal) : ''}
             </Button>
-          </Card>
-        </Col>
-
-        {/* ── Columna derecha: barberos hoy + últimas ventas ── */}
-        <Col xs={24} lg={10}>
-          {/* Barberos hoy */}
-          <Card title="✂️ Barberos hoy" size="small" style={{ marginBottom: 12 }}>
-            {barberosHoy.length === 0 ? (
-              <div style={{ color: C.textDisabled, textAlign: 'center', padding: '16px 0' }}>Sin servicios aún</div>
-            ) : (
-              barberosHoy.map(b => (
-                <div key={b.barberoId} style={{ marginBottom: 10 }}>
-                  <Row justify="space-between" align="middle">
-                    <Col><b>{b.nombre}</b> <span style={{ color: C.textMuted, fontSize: 11 }}>{b.servicios} servicios</span></Col>
-                    <Col><b style={{ color: primary }}>{fmt(b.total)}</b></Col>
-                  </Row>
-                  <div style={{ background: C.bgMuted, borderRadius: 4, height: 6, marginTop: 4, overflow: 'hidden' }}>
-                    <div style={{
-                      background: primary, height: '100%', borderRadius: 4,
-                      width: `${Math.min(100, (b.total / Math.max(...barberosHoy.map(x => x.total))) * 100)}%`
-                    }} />
-                  </div>
-                  <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>
-                    {b.desglose.map(d => `${d.cantidad}×${d.descripcion} ${fmt(d.subtotal)}`).join(' · ')}
-                  </div>
-                </div>
-              ))
-            )}
-            {barberosHoy.length > 0 && (
-              <div style={{ borderTop: `1px dashed ${C.border}`, marginTop: 8, paddingTop: 8 }}>
-                <Row justify="space-between">
-                  <Col style={{ color: C.textMuted }}>Total turno</Col>
-                  <Col><b style={{ color: primary, fontSize: 14 }}>{fmt(barberosHoy.reduce((s, b) => s + b.total, 0))}</b></Col>
-                </Row>
-              </div>
-            )}
-          </Card>
-
-          {/* Últimas ventas */}
-          <Card title="🕐 Últimas ventas" size="small"
-            extra={<Button size="small" icon={<ReloadOutlined />} onClick={cargarVentasRecientes} />}>
-            {ventasRecientes.length === 0 ? (
-              <div style={{ color: C.textDisabled, textAlign: 'center', padding: '16px 0' }}>Sin ventas aún</div>
-            ) : (
-              ventasRecientes.map(v => (
-                <div key={v.id} style={{
-                  padding: '6px 0', borderBottom: `1px solid ${C.border}`,
-                  opacity: v.estado === 'ANULADA' ? 0.4 : 1,
-                }}>
-                  <Row justify="space-between" align="middle">
-                    <Col>
-                      <span style={{ fontWeight: 600 }}>#{v.numero}</span>
-                      <span style={{ color: C.textMuted, fontSize: 11, marginLeft: 6 }}>
-                        {new Date(v.createdAt).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {v.estado === 'ANULADA' && <Tag color="red" style={{ marginLeft: 4, fontSize: 10 }}>ANULADA</Tag>}
-                    </Col>
-                    <Col><b style={{ color: primary }}>{fmt(v.total)}</b></Col>
-                  </Row>
-                  <div style={{ fontSize: 10, color: C.textMuted }}>
-                    {v.detalles.map((d, i) => <span key={i}>{d.barberoNombre}: {d.descripcion} </span>)}
-                  </div>
-                </div>
-              ))
-            )}
-          </Card>
+            </Card>
+          </div>
         </Col>
       </Row>
 
