@@ -155,12 +155,22 @@ export default function AppointmentsPage() {
     {
       title:  'Cliente',
       key:    'cliente',
-      render: (_, r) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{r.client.fullName}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>{r.service.name}</Text>
-        </div>
-      ),
+      render: (_, r) => {
+        const isWeb = /^\d+@guest\.speeddan\.com$/.test(r.client.email);
+        return (
+          <div>
+            <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {r.client.fullName}
+              {isWeb && (
+                <Tag color="geekblue" style={{ fontSize: 10, lineHeight: '16px', padding: '0 5px', marginInlineEnd: 0 }}>
+                  WEB
+                </Tag>
+              )}
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>{r.service.name}</Text>
+          </div>
+        );
+      },
     },
     {
       title:  'Barbero',

@@ -111,7 +111,13 @@ export async function POST(
     return NextResponse.json({ error: 'Body inválido' }, { status: 400 });
   }
 
-  const serviceId   = Number(body.serviceId);
+  // serviceIds: array de IDs (multi-select). serviceId es fallback para compatibilidad.
+  const rawIds    = Array.isArray(body.serviceIds) ? body.serviceIds : [];
+  const primaryId = Number(body.serviceId);
+  const serviceIds: number[] = rawIds.length > 0
+    ? rawIds.map(Number).filter(n => !isNaN(n) && n > 0)
+    : (primaryId > 0 ? [primaryId] : []);
+
   const barberId    = body.barberId != null ? Number(body.barberId) : null;
   const date        = String(body.date ?? '');
   const time        = String(body.time ?? '');
@@ -121,7 +127,7 @@ export async function POST(
   const notes       = body.notes       ? sanitize(String(body.notes), 300) : undefined;
 
   // Validaciones
-  if (!serviceId || isNaN(serviceId))
+  if (serviceIds.length === 0)
     return NextResponse.json({ error: 'serviceId inválido' }, { status: 400 });
   if (!DATE_RE.test(date))
     return NextResponse.json({ error: 'Fecha inválida (YYYY-MM-DD)' }, { status: 400 });
@@ -164,19 +170,22 @@ export async function POST(
     return NextResponse.json({ error: 'La barbería no atiende ese día' }, { status: 409 });
   }
 
-  // ── 6. Validar servicio pertenece a este tenant ────────
-  const service = await prisma.barberService.findFirst({
-    where: { id: serviceId, tenantId: tenant.id, active: true },
+  // ── 6. Validar servicios pertenecen a este tenant ─────
+  const services = await prisma.barberService.findMany({
+    where: { id: { in: serviceIds }, tenantId: tenant.id, active: true },
+    orderBy: { id: 'asc' },
   });
-  if (!service) return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 });
+  if (services.length === 0)
+    return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 });
 
-  const endTime = addMinutes(startTime, service.duration);
+  // Duración total de todos los servicios
+  const totalDuration = services.reduce((sum, s) => sum + s.duration, 0);
+  const blockEndTime  = addMinutes(startTime, totalDuration);
 
-  // ── 7. Resolver barbero ────────────────────────────────
+  // ── 7. Resolver barbero (usando bloque completo) ───────
   let resolvedBarberId: number;
 
   if (!barberId) {
-    // Cualquier barbero disponible
     const dayOfWeek  = startTime.getDay();
     const candidates = await prisma.barber.findMany({
       where:   { tenantId: tenant.id, active: true },
@@ -184,7 +193,7 @@ export async function POST(
         schedules:    { where: { dayOfWeek, active: true } },
         appointments: {
           where: {
-            startTime: { lt: endTime },
+            startTime: { lt: blockEndTime },
             endTime:   { gt: startTime },
             status:    { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
           },
@@ -196,19 +205,17 @@ export async function POST(
       return NextResponse.json({ error: 'No hay barberos disponibles en ese horario' }, { status: 409 });
     resolvedBarberId = free.id;
   } else {
-    // Validar que el barbero pertenece a este tenant
     const barberRecord = await prisma.barber.findFirst({
       where: { id: barberId, tenantId: tenant.id, active: true },
     });
     if (!barberRecord)
       return NextResponse.json({ error: 'Barbero no encontrado' }, { status: 404 });
 
-    // Verificar que esté libre
     const conflict = await prisma.barberAppointment.findFirst({
       where: {
         barberId,
         status:    { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
-        startTime: { lt: endTime },
+        startTime: { lt: blockEndTime },
         endTime:   { gt: startTime },
       },
     });
@@ -233,39 +240,68 @@ export async function POST(
       data: {
         tenantId: tenant.id,
         email:    guestEmail,
-        password: randomPwd,        // contraseña aleatoria — no puede iniciar sesión
+        password: randomPwd,
         fullName: clientName,
         phone:    clientPhone,
-        role:     'CLIENT',         // nunca OWNER ni BARBER
+        role:     'CLIENT',
         active:   true,
       },
     });
   }
 
-  // ── 9. Crear cita ──────────────────────────────────────
-  const appointment = await prisma.barberAppointment.create({
-    data: {
-      tenantId:  tenant.id,
-      clientId:  clientUser.id,
-      barberId:  resolvedBarberId,
-      serviceId: service.id,
-      startTime,
-      endTime,
-      status:    'PENDING',
-      notes:     notes ?? null,
-    },
-    include: {
-      barber:  { include: { user: { select: { fullName: true } } } },
-      service: { select: { name: true, price: true, duration: true } },
-    },
-  });
+  // ── 9. Crear citas en cadena (una por servicio) ────────
+  // Cada cita comienza donde termina la anterior
+  const appointments = [];
+  let cursor = startTime;
+  for (const svc of services) {
+    const svcEnd = addMinutes(cursor, svc.duration);
+    const appt = await prisma.barberAppointment.create({
+      data: {
+        tenantId:  tenant.id,
+        clientId:  clientUser.id,
+        barberId:  resolvedBarberId,
+        serviceId: svc.id,
+        startTime: cursor,
+        endTime:   svcEnd,
+        status:    'PENDING',
+        notes:     cursor === startTime ? (notes ?? null) : null,
+      },
+      include: {
+        barber:  { include: { user: { select: { fullName: true } } } },
+        service: { select: { name: true, price: true, duration: true } },
+      },
+    });
+    appointments.push(appt);
+    cursor = svcEnd;
+  }
 
-  // Solo devolvemos lo necesario para la pantalla de confirmación
+  const first       = appointments[0];
+  const barberName  = first.barber.user.fullName;
+  const serviceNames = appointments.map(a => a.service.name).join(', ');
+
+  // ── 10. Construir URL WhatsApp de notificación al negocio ──
+  const dtStr = first.startTime.toLocaleDateString('es-SV', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const tmStr = first.startTime.toLocaleTimeString('es-SV', {
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+  const waText = encodeURIComponent(
+    `📅 Nueva reserva web — BookStyle\n` +
+    `👤 Cliente: ${clientName} (${clientPhone})\n` +
+    `✂️ Servicio: ${serviceNames}\n` +
+    `👨 Profesional: ${barberName}\n` +
+    `🗓️ ${dtStr} a las ${tmStr}`
+  );
+  const tenantPhone = tenant.phone?.replace(/\D/g, '') ?? '';
+  const waUrl = tenantPhone ? `https://wa.me/${tenantPhone}?text=${waText}` : null;
+
   return NextResponse.json({
-    ok:          true,
-    barberName:  appointment.barber.user.fullName,
-    serviceName: appointment.service.name,
-    startTime:   appointment.startTime.toISOString(),
-    endTime:     appointment.endTime.toISOString(),
+    ok:           true,
+    barberName,
+    serviceName:  serviceNames,
+    startTime:    first.startTime.toISOString(),
+    endTime:      appointments[appointments.length - 1].endTime.toISOString(),
+    waUrl,
   }, { status: 201 });
 }
