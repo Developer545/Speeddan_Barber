@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
-import { ok, created } from '@/lib/api-response'
+import { ok, created } from '@/lib/response'
 import { UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { listTarjetas, createTarjeta } from '@/modules/loyalty/loyalty.service'
 
