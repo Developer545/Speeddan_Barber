@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Row, Col, Card, Button, Select, InputNumber, Tag, Statistic,
-  Modal, Alert, Divider, Badge, Tooltip, Space, Input, Avatar
+  Modal, Alert, Divider, Badge, Tooltip, Space, Input, Avatar, AutoComplete
 } from 'antd'
 import {
   PlusOutlined, DeleteOutlined, FileTextOutlined, CheckCircleOutlined,
@@ -132,7 +132,12 @@ export default function PosClient({
     estado: 'ACTIVA' | 'PENDIENTE_CANJE'; dolarsPorPunto?: number
   } | null>(null)
   const [loadingTarjeta, setLoadingTarjeta] = useState(false)
-  const [lineaGratis, setLineaGratis]       = useState<string | null>(null) // key de la línea con descuento 100%
+  const [lineaGratis,    setLineaGratis]    = useState<string | null>(null)
+  const [todasTarjetas,  setTodasTarjetas]  = useState<{
+    id: number; codigo: string; nombre: string
+    tipo: 'SELLOS' | 'PUNTOS'; meta: number; saldoActual: number
+    estado: 'ACTIVA' | 'PENDIENTE_CANJE'; dolarsPorPunto?: number
+  }[]>([])
 
   // ── Cargar datos ────────────────────────────────────────────────────────────
 
@@ -395,24 +400,27 @@ export default function PosClient({
 
   // ── Tarjeta de fidelización ─────────────────────────────────────────────────
 
-  const buscarTarjeta = useCallback(async (codigo: string) => {
-    const c = codigo.trim().toUpperCase()
-    if (!c) { setTarjetaInfo(null); return }
+  // Cargar lista completa de tarjetas (una sola vez al enfocar el campo)
+  const cargarTarjetas = useCallback(async () => {
+    if (todasTarjetas.length > 0) return // ya cargadas
     setLoadingTarjeta(true)
     try {
-      const res = await fetch(`/api/loyalty/tarjetas/${c}`)
-      if (res.ok) {
-        const json = await res.json()
-        setTarjetaInfo(json.data)
-        if (json.data.estado === 'PENDIENTE_CANJE') {
-          toast.success(`🎉 ¡Tarjeta completa! El cliente ganó su premio.`)
-        }
-      } else {
-        setTarjetaInfo(null)
-        toast.error('Código de tarjeta no encontrado')
-      }
+      const res  = await fetch('/api/loyalty/tarjetas')
+      const json = await res.json()
+      if (res.ok) setTodasTarjetas(json.data ?? [])
     } finally { setLoadingTarjeta(false) }
-  }, [])
+  }, [todasTarjetas.length])
+
+  // Seleccionar una tarjeta del dropdown
+  const seleccionarTarjeta = useCallback((codigo: string) => {
+    const t = todasTarjetas.find(x => x.codigo === codigo)
+    if (!t) return
+    setCodigoTarjeta(t.codigo)
+    setTarjetaInfo(t)
+    if (t.estado === 'PENDIENTE_CANJE') {
+      toast.success('🎉 ¡Tarjeta completa! El cliente ganó su premio.')
+    }
+  }, [todasTarjetas])
 
   const darLineaGratis = (key: string) => {
     if (lineaGratis === key) {
@@ -1189,17 +1197,46 @@ export default function PosClient({
               <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4, fontWeight: 600 }}>
                 🎴 Código de tarjeta (opcional)
               </div>
-              <Input.Search
-                placeholder="Ej: GOLD-001"
+              <AutoComplete
+                style={{ width: '100%' }}
                 value={codigoTarjeta}
-                onChange={e => { setCodigoTarjeta(e.target.value.toUpperCase()); if (!e.target.value) setTarjetaInfo(null) }}
-                onSearch={buscarTarjeta}
-                enterButton="Buscar"
-                loading={loadingTarjeta}
-                size="small"
-                allowClear
-                onClear={() => { setTarjetaInfo(null); setLineaGratis(null) }}
-              />
+                onFocus={cargarTarjetas}
+                onChange={val => {
+                  const v = val.toUpperCase()
+                  setCodigoTarjeta(v)
+                  if (!v) { setTarjetaInfo(null); setLineaGratis(null) }
+                }}
+                onSelect={seleccionarTarjeta}
+                options={todasTarjetas
+                  .filter(t => {
+                    const q = codigoTarjeta.trim().toUpperCase()
+                    if (!q) return true
+                    return t.codigo.includes(q) || t.nombre.toUpperCase().includes(q)
+                  })
+                  .map(t => ({
+                    value: t.codigo,
+                    label: (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>
+                          <strong>{t.codigo}</strong>
+                          <span style={{ color: '#888', marginLeft: 6, fontSize: 12 }}>{t.nombre}</span>
+                        </span>
+                        <span style={{ fontSize: 11 }}>
+                          {t.tipo === 'SELLOS' ? '🔖' : '⭐'} {t.saldoActual}/{t.meta}
+                          {t.estado === 'PENDIENTE_CANJE' && <span style={{ color: '#d46b08', marginLeft: 4 }}>🎁</span>}
+                        </span>
+                      </div>
+                    ),
+                  }))}
+              >
+                <Input
+                  placeholder="Busca por código o nombre…"
+                  size="small"
+                  allowClear
+                  suffix={loadingTarjeta ? '…' : undefined}
+                  onClear={() => { setTarjetaInfo(null); setLineaGratis(null); setCodigoTarjeta('') }}
+                />
+              </AutoComplete>
               {tarjetaInfo && (
                 <Card size="small" style={{ marginTop: 6, background: tarjetaInfo.estado === 'PENDIENTE_CANJE' ? '#fff7e6' : C.bgPrimaryLow, borderColor: tarjetaInfo.estado === 'PENDIENTE_CANJE' ? '#faad14' : `${primary}40` }}>
                   <div style={{ fontWeight: 600, fontSize: 12 }}>
