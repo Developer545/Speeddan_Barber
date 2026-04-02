@@ -156,7 +156,7 @@ export default function AppointmentsPage() {
       title:  'Cliente',
       key:    'cliente',
       render: (_, r) => {
-        const isWeb = /^\d+@guest\.speeddan\.com$/.test(r.client.email);
+        const isWeb = r.notes?.startsWith('__WEB__') || /^\d+@guest\.speeddan\.com$/.test(r.client.email);
         return (
           <div>
             <div style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -358,9 +358,9 @@ export default function AppointmentsPage() {
                 {STATUS_LABELS[detailAppt.status] ?? detailAppt.status}
               </Tag>
             </Space>
-            {detailAppt.notes && (
+            {detailAppt.notes && detailAppt.notes.replace('__WEB__', '').trim() && (
               <p style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 8, marginBottom: 0 }}>
-                <strong>Nota:</strong> {detailAppt.notes}
+                <strong>Nota:</strong> {detailAppt.notes.replace('__WEB__', '').trim()}
               </p>
             )}
             {detailAppt.cancelReason && (

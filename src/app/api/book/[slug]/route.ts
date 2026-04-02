@@ -255,6 +255,10 @@ export async function POST(
   let cursor = startTime;
   for (const svc of services) {
     const svcEnd = addMinutes(cursor, svc.duration);
+    // __WEB__ prefix marca la cita como originada desde reserva pública
+    const apptNotes = cursor === startTime
+      ? `__WEB__${notes ? notes : ''}`
+      : '__WEB__';
     const appt = await prisma.barberAppointment.create({
       data: {
         tenantId:  tenant.id,
@@ -264,7 +268,7 @@ export async function POST(
         startTime: cursor,
         endTime:   svcEnd,
         status:    'PENDING',
-        notes:     cursor === startTime ? (notes ?? null) : null,
+        notes:     apptNotes,
       },
       include: {
         barber:  { include: { user: { select: { fullName: true } } } },

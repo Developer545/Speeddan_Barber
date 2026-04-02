@@ -71,8 +71,9 @@ export default function AppointmentCalendar({ appointments, onEventClick }: Prop
         }}
         locale="es"
         buttonText={{ today: 'Hoy', week: 'Semana', day: 'Día', month: 'Mes' }}
-        slotMinTime="07:00:00"
+        slotMinTime="06:00:00"
         slotMaxTime="21:00:00"
+        scrollTime="07:00:00"
         allDaySlot={false}
         events={events}
         eventClick={handleEventClick}
