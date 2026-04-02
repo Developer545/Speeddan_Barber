@@ -5,10 +5,17 @@ import PosClient from '@/components/pos/PosClient'
 
 export const dynamic = 'force-dynamic'
 
-export default async function PosPage() {
+export default async function PosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ appointmentId?: string }>
+}) {
   const user = await getCurrentUser()
   if (!user) redirect('/login')
   if (user.role !== 'OWNER' && user.role !== 'BARBER') redirect('/dashboard')
+
+  const { appointmentId } = await searchParams
+  const preloadAppointmentId = appointmentId ? Number(appointmentId) : undefined
 
   // Cargar barberos activos del tenant
   const barbers = await prisma.barber.findMany({
@@ -53,6 +60,7 @@ export default async function PosPage() {
       barberos={barberos}
       servicios={servicios}
       productos={productos}
+      preloadAppointmentId={preloadAppointmentId}
     />
   )
 }

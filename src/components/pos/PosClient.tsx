@@ -82,10 +82,12 @@ export default function PosClient({
   barberos: barberosProp,
   servicios: serviciosProp,
   productos: productosProp,
+  preloadAppointmentId,
 }: {
   barberos: Barbero[]
   servicios: Servicio[]
   productos: Producto[]
+  preloadAppointmentId?: number
 }) {
   const { theme: barberTheme } = useBarberTheme()
   const primary = barberTheme.colorPrimary
@@ -141,6 +143,34 @@ export default function PosClient({
     cargarTurno()
     cargarVentasRecientes()
   }, [cargarTurno, cargarVentasRecientes])
+
+  // ── Pre-carga desde cita (appointmentId en URL) ─────────────────────────────
+  useEffect(() => {
+    if (!preloadAppointmentId) return
+    fetch(`/api/appointments/${preloadAppointmentId}`)
+      .then(r => r.json())
+      .then(json => {
+        const appt = json.data ?? json
+        if (!appt?.id) return
+        setBarberoActivo({ id: appt.barber.id, nombre: appt.barber.user.fullName })
+        setClienteNombre(appt.client.fullName)
+        setLineas([{
+          key:            `svc-preload-${appt.service.id}`,
+          barberoId:      appt.barber.id,
+          barberoNombre:  appt.barber.user.fullName,
+          servicioId:     appt.service.id,
+          productoId:     null,
+          esProducto:     false,
+          descripcion:    appt.service.name,
+          precioUnitario: appt.service.price,
+          cantidad:       1,
+          descuento:      0,
+          esGravado:      true,
+        }])
+      })
+      .catch(() => {/* silencioso si falla */})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Cálculos ────────────────────────────────────────────────────────────────
 

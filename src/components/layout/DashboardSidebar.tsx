@@ -52,7 +52,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/pos-turnos',     label: 'Turnos de Caja',  icon: ClockClockwise, roles: ['OWNER', 'BARBER'] },
   { href: '/pos-documentos', label: 'Documentos',      icon: FileText,       roles: ['OWNER'] },
   { href: '/appointments',   label: 'Citas',           icon: CalendarDots,   roles: ['OWNER', 'BARBER', 'CLIENT'] },
-  { href: '/billing',        label: 'Caja (Citas)',    icon: CreditCard,     roles: ['OWNER'] },
   // ── Catálogos ──
   { href: '/barbers',        label: 'Barberos',        icon: Users,          roles: ['OWNER'] },
   { href: '/services',       label: 'Servicios',       icon: Scissors,       roles: ['OWNER'] },

@@ -5,6 +5,7 @@
 // ══════════════════════════════════════════════════════════
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import {
@@ -16,7 +17,7 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined, CalendarOutlined, UnorderedListOutlined,
   ClockCircleOutlined, CheckCircleOutlined, StopOutlined,
-  TeamOutlined,
+  TeamOutlined, ShoppingCartOutlined,
 } from '@ant-design/icons';
 import AppointmentForm from '@/components/appointments/AppointmentForm';
 import { format } from 'date-fns';
@@ -62,6 +63,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 // ── Componente ───────────────────────────────────────────
 export default function AppointmentsPage() {
+  const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [barbers,  setBarbers]  = useState<Barber[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -328,13 +330,30 @@ export default function AppointmentsPage() {
         open={!!detailAppt}
         onCancel={() => setDetailAppt(null)}
         title="Detalle de cita"
-        footer={
-          detailAppt && !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(detailAppt.status) ? (
-            <Button danger onClick={() => detailAppt && handleCancel(detailAppt)}>
-              Cancelar cita
-            </Button>
-          ) : null
-        }
+        footer={(() => {
+          if (!detailAppt) return null;
+          const cancelable = !['CANCELLED', 'COMPLETED', 'NO_SHOW'].includes(detailAppt.status);
+          const billable   = !['CANCELLED', 'NO_SHOW'].includes(detailAppt.status);
+          if (!cancelable && !billable) return null;
+          return (
+            <Space>
+              {billable && (
+                <Button
+                  type="primary"
+                  icon={<ShoppingCartOutlined />}
+                  onClick={() => router.push(`/pos?appointmentId=${detailAppt.id}`)}
+                >
+                  Cobrar en POS
+                </Button>
+              )}
+              {cancelable && (
+                <Button danger onClick={() => handleCancel(detailAppt)}>
+                  Cancelar cita
+                </Button>
+              )}
+            </Space>
+          );
+        })()}
         width={520}
         destroyOnHidden
       >
