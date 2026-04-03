@@ -80,7 +80,7 @@ const featureIcons = [CalendarIcon, ChartIcon, UsersIcon];
 export default function LoginPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>('empresa');
-  const [sector, setSector] = useState<Sector>('barberia');
+  const [sector, setSector] = useState<Sector>(getStoredSector);
   const [slug, setSlug] = useState(() => typeof window !== 'undefined' ? window.localStorage.getItem('barber_last_tenant') ?? '' : '');
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [email, setEmail] = useState('');
@@ -89,8 +89,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [branding, setBranding] = useState<BrandingConfig>(DEFAULT_BRANDING);
-
-  useEffect(() => setSector(getStoredSector()), []);
 
   useEffect(() => {
     fetch('/api/public/branding').then((r) => (r.ok ? r.json() : null)).then((data) => { if (data) setBranding(data); }).catch(() => {});
