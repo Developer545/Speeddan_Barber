@@ -27,9 +27,10 @@ export async function GET(
 ) {
   const { slug } = await params;
   const { searchParams } = req.nextUrl;
-  const dateStr   = searchParams.get('date');
-  const barberIdQ = searchParams.get('barberId');
-  const serviceId = searchParams.get('serviceId');
+  const dateStr        = searchParams.get('date');
+  const barberIdQ      = searchParams.get('barberId');
+  const serviceId      = searchParams.get('serviceId');
+  const totalDurationQ = searchParams.get('totalDuration');
 
   if (!dateStr) return NextResponse.json({ error: 'date requerido' }, { status: 400 });
 
@@ -55,9 +56,11 @@ export async function GET(
   const openTime  = override?.openTime  ?? DEFAULT_OPEN;
   const closeTime = override?.closeTime ?? DEFAULT_CLOSE;
 
-  // Service duration (default 30 min)
+  // Service duration — totalDuration overrides single serviceId lookup
   let duration = 30;
-  if (serviceId) {
+  if (totalDurationQ && Number(totalDurationQ) > 0) {
+    duration = Number(totalDurationQ);
+  } else if (serviceId) {
     const svc = await prisma.barberService.findFirst({
       where: { id: Number(serviceId), tenantId: tenant.id, active: true },
     });
