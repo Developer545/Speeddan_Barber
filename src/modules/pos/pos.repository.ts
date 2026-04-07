@@ -271,11 +271,14 @@ export async function createVenta(
       },
     })
 
-    // Descontar stock de productos vendidos
+    // Descontar stock de productos vendidos (validación DENTRO de la transacción previene race conditions)
     for (const d of data.detalles) {
       if (!d.productoId) continue
       const prod = await tx.barberProducto.findFirst({ where: { id: d.productoId, tenantId } })
-      if (!prod) continue
+      if (!prod) throw new Error(`Producto no encontrado (id: ${d.productoId})`)
+      if (Number(prod.stockActual) < d.cantidad) {
+        throw new Error(`Stock insuficiente para "${prod.nombre}": disponible ${Number(prod.stockActual)}, solicitado ${d.cantidad}`)
+      }
       const stockAnterior = Number(prod.stockActual)
       const stockNuevo = parseFloat((stockAnterior - d.cantidad).toFixed(4))
       await tx.barberKardex.create({
@@ -367,9 +370,45 @@ export async function getVentaById(id: number, tenantId: number) {
 }
 
 export async function anularVenta(id: number, tenantId: number, motivo: string) {
-  return prisma.barberVenta.update({
-    where: { id },
-    data: { estado: 'ANULADA', motivoAnulacion: motivo },
+  return prisma.$transaction(async (tx) => {
+    const venta = await tx.barberVenta.findFirst({
+      where: { id, tenantId },
+      include: { detalles: true },
+    })
+    if (!venta) throw new Error('Venta no encontrada')
+
+    // Restaurar stock de cada producto incluido en la venta
+    for (const d of venta.detalles) {
+      if (!d.productoId) continue
+      const prod = await tx.barberProducto.findFirst({ where: { id: d.productoId, tenantId } })
+      if (!prod) continue
+      const stockAnterior = Number(prod.stockActual)
+      const stockNuevo = parseFloat((stockAnterior + Number(d.cantidad)).toFixed(4))
+      await tx.barberKardex.create({
+        data: {
+          tenantId,
+          productoId: d.productoId,
+          tipoMovimiento: 'ENTRADA',
+          referencia: `ANULACION-${venta.numero}`,
+          cantidad: Number(d.cantidad),
+          costoUnitario: Number(prod.costoPromedio),
+          costoTotal: parseFloat((Number(d.cantidad) * Number(prod.costoPromedio)).toFixed(4)),
+          stockAnterior,
+          stockNuevo,
+          notas: `Anulación de venta #${venta.numero}: ${motivo}`,
+          fecha: new Date(),
+        },
+      })
+      await tx.barberProducto.update({
+        where: { id: d.productoId },
+        data: { stockActual: stockNuevo },
+      })
+    }
+
+    return tx.barberVenta.update({
+      where: { id },
+      data: { estado: 'ANULADA', motivoAnulacion: motivo },
+    })
   })
 }
 

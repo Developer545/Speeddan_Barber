@@ -1,101 +1,60 @@
 /**
- * proxy.ts — Auth + Tenant middleware para Next.js 16.
- * Se ejecuta en Edge Runtime (antes de cada request).
- * Protege rutas del dashboard y verifica el JWT.
- *
- * Flujo:
- *  1. Ruta pública → dejar pasar
- *  2. Access token válido → dejar pasar (+ headers con datos del usuario)
- *  3. Access token expirado + refresh token → redirigir a /api/auth/refresh
- *  4. Sin tokens válidos → /login (páginas) o 401 (API)
+ * proxy.ts — Protección de rutas a nivel de red (Next.js 16+).
+ * En Next.js 16, middleware.ts fue renombrado a proxy.ts con export proxy() y proxyConfig.
+ * Verifica el JWT en barber_access_token antes de renderizar páginas del dashboard.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
 
-const ACCESS_TOKEN  = 'barber_access_token';
-const REFRESH_TOKEN = 'barber_refresh_token';
+function getSecret() {
+  return new TextEncoder().encode(process.env.JWT_SECRET ?? '')
+}
 
-const PUBLIC_PATHS = [
+// Rutas que NO requieren autenticación
+const PUBLIC_PREFIXES = [
   '/login',
-  '/api/auth',        // login, logout, refresh
-  '/api/public',      // branding, info pública
-  '/api/tenant/verify',
-  '/book',            // página pública de reservas
-  '/api/book',        // API pública de reservas
-  '/api/superadmin',  // panel central Speeddan Control (auth por API key)
-];
+  '/api/auth',
+  '/api/book',
+  '/api/superadmin',
+  '/book',
+]
 
-function isPublic(pathname: string): boolean {
-  return PUBLIC_PATHS.some(p =>
-    pathname === p ||
-    pathname.startsWith(p + '/') ||
-    pathname.startsWith(p + '?')
-  );
-}
+export async function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl
 
-function getSecret(): Uint8Array {
-  return new TextEncoder().encode(process.env.JWT_SECRET ?? 'fallback-secret');
-}
-
-export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Assets del sistema → pasar siempre
-  if (pathname.startsWith('/_next') || pathname.startsWith('/favicon')) {
-    return NextResponse.next();
+  // Permitir rutas públicas sin verificar token
+  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next()
   }
 
-  // Rutas públicas → pasar sin verificación
-  if (isPublic(pathname)) return NextResponse.next();
+  const token = req.cookies.get('barber_access_token')?.value
 
-  const accessToken  = request.cookies.get(ACCESS_TOKEN)?.value;
-  const refreshToken = request.cookies.get(REFRESH_TOKEN)?.value;
-
-  // ── 1. Access token presente → verificar ─────────────────────────────────
-  if (accessToken) {
-    try {
-      const { payload } = await jwtVerify(accessToken, getSecret());
-      const response = NextResponse.next();
-      // Pasar datos del usuario en headers para Server Components
-      response.headers.set('x-user-id',     String(payload.sub));
-      response.headers.set('x-tenant-id',   String(payload.tenantId));
-      response.headers.set('x-user-role',   String(payload.role));
-      response.headers.set('x-tenant-slug', String(payload.slug));
-      response.headers.set('x-user-name',   String(payload.name ?? ''));
-      return response;
-    } catch {
-      // Token expirado o inválido → intentar refresh
+  if (!token) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, error: { message: 'No autorizado', code: 'UNAUTHORIZED' } },
+        { status: 401 },
+      )
     }
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // ── 2. Refresh token disponible → redirect al endpoint de refresh ─────────
-  if (refreshToken) {
-    const refreshUrl = request.nextUrl.clone();
-    refreshUrl.pathname = '/api/auth/refresh';
-    refreshUrl.search   = '';
-    refreshUrl.searchParams.set('redirect', pathname + request.nextUrl.search);
-    return NextResponse.redirect(refreshUrl);
+  try {
+    await jwtVerify(token, getSecret())
+    return NextResponse.next()
+  } catch {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, error: { message: 'Token inválido o expirado', code: 'UNAUTHORIZED' } },
+        { status: 401 },
+      )
+    }
+    return NextResponse.redirect(new URL('/login', req.url))
   }
-
-  // ── 3. Sin tokens válidos ─────────────────────────────────────────────────
-  if (pathname.startsWith('/api/')) {
-    return NextResponse.json(
-      { success: false, error: { message: 'No autorizado', code: 'UNAUTHORIZED' } },
-      { status: 401 }
-    );
-  }
-
-  const loginUrl = request.nextUrl.clone();
-  loginUrl.pathname = '/login';
-  loginUrl.search   = '';
-  const res = NextResponse.redirect(loginUrl);
-  res.cookies.delete(ACCESS_TOKEN);
-  return res;
 }
 
-export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
-  ],
-};
+export const proxyConfig = {
+  // Excluir assets estáticos de Next.js
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.jpg|.*\\.svg).*)'],
+}

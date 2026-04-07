@@ -240,6 +240,7 @@ model BarberService {
   appointments  BarberAppointment[]
   detallesVenta BarberDetalleVenta[]
 
+  @@index([tenantId, active])
   @@map("barber_services")
 }
 
@@ -271,6 +272,7 @@ model BarberAppointment {
   review  BarberReview?
 
   @@unique([barberId, startTime])
+  @@index([tenantId, status])
   @@map("barber_appointments")
 }
 
@@ -283,7 +285,7 @@ model BarberPayment {
   tenantId      Int
   tenant        BarberTenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   appointmentId Int                 @unique
-  appointment   BarberAppointment   @relation(fields: [appointmentId], references: [id])
+  appointment   BarberAppointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   amount        Decimal             @db.Decimal(10, 2)
   method        BarberPaymentMethod @default(CASH)
   status        BarberPaymentStatus @default(PENDING)
@@ -738,6 +740,7 @@ model BarberVenta {
 
   @@unique([tenantId, numero])
   @@index([tenantId])
+  @@index([tenantId, estado])
   @@index([turnoId])
   @@map("barber_ventas")
 }

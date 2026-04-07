@@ -1,11 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
+import { ok, created, apiError } from '@/lib/response'
+import { UnauthorizedError } from '@/lib/errors'
 import { createVenta, getVentas } from '@/modules/pos/pos.service'
 
 export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!user) throw new UnauthorizedError()
 
     const sp = req.nextUrl.searchParams
     const result = await getVentas(user.tenantId, {
@@ -16,21 +18,21 @@ export async function GET(req: NextRequest) {
       hasta: sp.get('hasta') || undefined,
       page: Number(sp.get('page') || '1'),
     })
-    return NextResponse.json(result)
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    return ok(result)
+  } catch (e) {
+    return apiError(e)
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!user) throw new UnauthorizedError()
 
     const body = await req.json()
     const result = await createVenta(user.tenantId, body)
-    return NextResponse.json(result, { status: 201 })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 })
+    return created(result)
+  } catch (e) {
+    return apiError(e)
   }
 }

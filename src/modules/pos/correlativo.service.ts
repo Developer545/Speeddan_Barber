@@ -14,19 +14,14 @@ export async function getNextCorrelativo(
   const anioFiscal = new Date().getFullYear()
 
   const correlativo = await prisma.$transaction(async (tx) => {
-    // Upsert: crea si no existe, luego incrementa
-    await tx.barberCorrelativo.upsert({
+    // Upsert atómico: crea con siguiente=2 (primer uso devuelve 1) o incrementa en 1.
+    // Una sola operación elimina la ventana de race condition del patrón upsert+update separado.
+    const updated = await tx.barberCorrelativo.upsert({
       where: { tenantId_tipoDte_anioFiscal: { tenantId, tipoDte, anioFiscal } },
-      create: { tenantId, tipoDte, anioFiscal, siguiente: 1 },
-      update: {},
+      create: { tenantId, tipoDte, anioFiscal, siguiente: 2 },
+      update: { siguiente: { increment: 1 } },
     })
-
-    const updated = await tx.barberCorrelativo.update({
-      where: { tenantId_tipoDte_anioFiscal: { tenantId, tipoDte, anioFiscal } },
-      data: { siguiente: { increment: 1 } },
-    })
-
-    // El número usado es el que había ANTES del increment
+    // El número usado es el que había ANTES del increment (siguiente - 1)
     return updated.siguiente - 1
   })
 

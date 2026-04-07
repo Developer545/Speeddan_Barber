@@ -2,7 +2,7 @@
  * appointments.service.ts — Lógica de negocio para citas.
  */
 
-import { NotFoundError, ValidationError } from '@/lib/errors';
+import { NotFoundError, ValidationError, ConflictError } from '@/lib/errors';
 import { addMinutes } from 'date-fns';
 import * as repo from './appointments.repository';
 import type { BarberAppointmentStatus } from '@prisma/client';
@@ -39,6 +39,18 @@ export async function createAppointment(tenantId: number, body: unknown) {
   const startTime = new Date(b.startTime as string);
   const endTime = addMinutes(startTime, service.duration);
 
+  // Verificar solapamiento: el endpoint público ya lo hace; aquí lo aplicamos también al dashboard
+  const conflict = await prisma.barberAppointment.findFirst({
+    where: {
+      tenantId,
+      barberId: Number(b.barberId),
+      status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+      startTime: { lt: endTime },
+      endTime: { gt: startTime },
+    },
+  });
+  if (conflict) throw new ConflictError('El barbero ya tiene una cita en ese horario');
+
   const appt = await repo.createAppointment(tenantId, {
     clientId: Number(b.clientId),
     barberId: Number(b.barberId),
@@ -67,6 +79,24 @@ export async function updateAppointment(id: number, tenantId: number, body: unkn
   if (b.serviceId) data.serviceId = Number(b.serviceId);
   if (b.notes !== undefined) data.notes = b.notes as string;
 
+  // Si cambia horario o barbero, verificar que no haya solapamiento
+  if (data.startTime || data.barberId) {
+    const checkBarberId = data.barberId ?? existing.barberId;
+    const checkStart = data.startTime ?? existing.startTime;
+    const checkEnd = data.endTime ?? existing.endTime;
+    const conflict = await prisma.barberAppointment.findFirst({
+      where: {
+        tenantId,
+        barberId: checkBarberId,
+        status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] },
+        startTime: { lt: checkEnd },
+        endTime: { gt: checkStart },
+        NOT: { id },
+      },
+    });
+    if (conflict) throw new ConflictError('El barbero ya tiene una cita en ese horario');
+  }
+
   const updated = await repo.updateAppointment(id, tenantId, data);
   return serializeAppointment(updated);
 }
@@ -84,24 +114,35 @@ export async function cancelAppointment(id: number, tenantId: number, reason?: s
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 async function getVentasPosSemana(tenantId: number) {
-  const results = [];
+  const now = new Date();
+  // Construir los 7 días con sus etiquetas
+  const days: Array<{ date: Date; label: string }> = [];
   for (let i = 6; i >= 0; i--) {
-    const d     = new Date();
-    d.setDate(d.getDate() - i);
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const end   = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-    const agg   = await prisma.barberVenta.aggregate({
-      where: { tenantId, estado: 'ACTIVA', createdAt: { gte: start, lt: end } },
-      _sum:   { total: true },
-      _count: { id: true },
-    });
-    results.push({
-      day:   DAY_LABELS[d.getDay()],
-      total: parseFloat((agg._sum.total?.toNumber() ?? 0).toFixed(2)),
-      count: agg._count.id,
-    });
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    days.push({ date: d, label: DAY_LABELS[d.getDay()] });
   }
-  return results;
+
+  // Una sola query en lugar de 7 queries en loop
+  const since = days[0].date;
+  const until = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const ventas = await prisma.barberVenta.findMany({
+    where: { tenantId, estado: 'ACTIVA', createdAt: { gte: since, lt: until } },
+    select: { total: true, createdAt: true },
+  });
+
+  // Agrupar en memoria por fecha exacta
+  const byDate = new Map<string, { total: number; count: number }>();
+  for (const { date } of days) byDate.set(date.toDateString(), { total: 0, count: 0 });
+  for (const v of ventas) {
+    const key = new Date(v.createdAt.getFullYear(), v.createdAt.getMonth(), v.createdAt.getDate()).toDateString();
+    const entry = byDate.get(key);
+    if (entry) { entry.total += Number(v.total); entry.count++; }
+  }
+
+  return days.map(({ date, label }) => {
+    const entry = byDate.get(date.toDateString()) ?? { total: 0, count: 0 };
+    return { day: label, total: parseFloat(entry.total.toFixed(2)), count: entry.count };
+  });
 }
 
 export async function getStats(tenantId: number) {

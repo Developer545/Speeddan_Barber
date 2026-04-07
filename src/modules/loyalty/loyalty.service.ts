@@ -66,39 +66,42 @@ export async function acumularLoyalty(
   ventaId: number,
   totalVenta: number,
 ) {
-  const tarjeta = await prisma.barberLoyaltyTarjeta.findUnique({
-    where: { tenantId_codigo: { tenantId, codigo: codigo.toUpperCase() } },
-  })
-  if (!tarjeta) throw new Error('Tarjeta no encontrada')
-  if (tarjeta.estado === 'PENDIENTE_CANJE') {
-    throw new Error('Esta tarjeta tiene un canje pendiente. Primero registra el canje.')
-  }
+  // Toda la lógica dentro de $transaction interactivo para prevenir race conditions:
+  // sin esto, dos compras simultáneas pueden leer el mismo saldo y sobrescribirse.
+  return prisma.$transaction(async (tx) => {
+    const tarjeta = await tx.barberLoyaltyTarjeta.findUnique({
+      where: { tenantId_codigo: { tenantId, codigo: codigo.toUpperCase() } },
+    })
+    if (!tarjeta) throw new Error('Tarjeta no encontrada')
+    if (tarjeta.estado === 'PENDIENTE_CANJE') {
+      throw new Error('Esta tarjeta tiene un canje pendiente. Primero registra el canje.')
+    }
 
-  // Calcular cuánto acumular
-  let cantidad = 1 // SELLOS: siempre 1
-  if (tarjeta.tipo === 'PUNTOS') {
-    const dolares = tarjeta.dolarsPorPunto ? Number(tarjeta.dolarsPorPunto) : 1
-    cantidad = Math.floor(totalVenta / dolares)
-    if (cantidad < 1) cantidad = 0 // Si el total no alcanza para 1 punto, no acumula
-  }
+    // Calcular cuánto acumular
+    let cantidad = 1 // SELLOS: siempre 1
+    if (tarjeta.tipo === 'PUNTOS') {
+      const dolares = tarjeta.dolarsPorPunto ? Number(tarjeta.dolarsPorPunto) : 1
+      cantidad = Math.floor(totalVenta / dolares)
+      if (cantidad < 1) cantidad = 0
+    }
 
-  if (cantidad === 0) {
-    return { tarjeta, completada: false, cantidad: 0 }
-  }
+    if (cantidad === 0) {
+      return { tarjeta, completada: false, cantidad: 0 }
+    }
 
-  const nuevoSaldo = tarjeta.saldoActual + cantidad
-  const completada = nuevoSaldo >= tarjeta.meta
-  const nuevoEstado = completada ? 'PENDIENTE_CANJE' : 'ACTIVA'
+    const nuevoSaldo = tarjeta.saldoActual + cantidad
+    const completada = nuevoSaldo >= tarjeta.meta
+    const nuevoEstado = completada ? 'PENDIENTE_CANJE' : 'ACTIVA'
 
-  const [tarjetaActualizada] = await prisma.$transaction([
-    prisma.barberLoyaltyTarjeta.update({
+    const tarjetaActualizada = await tx.barberLoyaltyTarjeta.update({
       where: { id: tarjeta.id },
       data: {
         saldoActual: Math.min(nuevoSaldo, tarjeta.meta),
         estado:      nuevoEstado,
       },
-    }),
-    prisma.barberLoyaltyMovimiento.create({
+    })
+
+    await tx.barberLoyaltyMovimiento.create({
       data: {
         tenantId,
         tarjetaId: tarjeta.id,
@@ -109,28 +112,29 @@ export async function acumularLoyalty(
           ? `Sello #${tarjeta.saldoActual + 1} de ${tarjeta.meta}`
           : `${cantidad} punto(s) por $${totalVenta.toFixed(2)}`,
       },
-    }),
-  ])
+    })
 
-  return { tarjeta: tarjetaActualizada, completada, cantidad }
+    return { tarjeta: tarjetaActualizada, completada, cantidad }
+  })
 }
 
 // ── Lógica de canje ────────────────────────────────────────────────────────────
 
 export async function canjearLoyalty(tenantId: number, codigo: string, nota?: string) {
-  const tarjeta = await prisma.barberLoyaltyTarjeta.findUnique({
-    where: { tenantId_codigo: { tenantId, codigo: codigo.toUpperCase() } },
-  })
-  if (!tarjeta) throw new Error('Tarjeta no encontrada')
+  return prisma.$transaction(async (tx) => {
+    const tarjeta = await tx.barberLoyaltyTarjeta.findUnique({
+      where: { tenantId_codigo: { tenantId, codigo: codigo.toUpperCase() } },
+    })
+    if (!tarjeta) throw new Error('Tarjeta no encontrada')
 
-  const cantidadCanjeada = tarjeta.saldoActual
+    const cantidadCanjeada = tarjeta.saldoActual
 
-  const [tarjetaActualizada] = await prisma.$transaction([
-    prisma.barberLoyaltyTarjeta.update({
+    const tarjetaActualizada = await tx.barberLoyaltyTarjeta.update({
       where: { id: tarjeta.id },
       data: { saldoActual: 0, estado: 'ACTIVA' },
-    }),
-    prisma.barberLoyaltyMovimiento.create({
+    })
+
+    await tx.barberLoyaltyMovimiento.create({
       data: {
         tenantId,
         tarjetaId: tarjeta.id,
@@ -138,8 +142,8 @@ export async function canjearLoyalty(tenantId: number, codigo: string, nota?: st
         cantidad:  -cantidadCanjeada,
         nota:      nota ?? 'Premio canjeado — tarjeta reiniciada',
       },
-    }),
-  ])
+    })
 
-  return tarjetaActualizada
+    return tarjetaActualizada
+  })
 }

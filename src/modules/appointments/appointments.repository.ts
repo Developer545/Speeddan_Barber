@@ -141,16 +141,33 @@ export async function countActiveClientsLast30Days(tenantId: number, since: Date
 }
 
 export async function countAppointmentsLast7Days(tenantId: number): Promise<{ day: string; count: number }[]> {
-  const now     = new Date();
-  const results: { day: string; count: number }[] = [];
+  const now = new Date();
+  // Construir los 7 días con sus etiquetas
+  const days: Array<{ date: Date; label: string }> = [];
   for (let i = 6; i >= 0; i--) {
-    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-    const dayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i + 1);
-    const count    = await prisma.barberAppointment.count({
-      where: { tenantId, startTime: { gte: dayStart, lt: dayEnd } },
-    });
-    const label = dayStart.toLocaleDateString('es-SV', { weekday: 'short' });
-    results.push({ day: label, count });
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    days.push({ date: d, label: d.toLocaleDateString('es-SV', { weekday: 'short' }) });
   }
-  return results;
+
+  // Una sola query en lugar de 7 queries en loop
+  const since = days[0].date;
+  const until = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const appointments = await prisma.barberAppointment.findMany({
+    where: { tenantId, startTime: { gte: since, lt: until } },
+    select: { startTime: true },
+  });
+
+  // Agrupar en memoria por fecha exacta
+  const countByDate = new Map<string, number>();
+  for (const { date } of days) countByDate.set(date.toDateString(), 0);
+  for (const appt of appointments) {
+    const key = new Date(
+      appt.startTime.getFullYear(),
+      appt.startTime.getMonth(),
+      appt.startTime.getDate(),
+    ).toDateString();
+    if (countByDate.has(key)) countByDate.set(key, (countByDate.get(key) ?? 0) + 1);
+  }
+
+  return days.map(({ date, label }) => ({ day: label, count: countByDate.get(date.toDateString()) ?? 0 }));
 }

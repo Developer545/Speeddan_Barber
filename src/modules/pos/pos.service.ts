@@ -127,15 +127,8 @@ export async function createVenta(tenantId: number, input: CreateVentaInput) {
     if (!item.productoId && !item.barberoId) throw new Error(`El ítem "${item.descripcion}" es un servicio y requiere barbero asignado`)
   }
 
-  // Validar stock de productos
-  for (const item of input.items) {
-    if (!item.productoId) continue
-    const prod = await repo.findProductoById(item.productoId, tenantId)
-    if (!prod) throw new Error(`Producto no encontrado (id: ${item.productoId})`)
-    if (Number(prod.stockActual) < item.cantidad) {
-      throw new Error(`Stock insuficiente para "${prod.nombre}": disponible ${Number(prod.stockActual)}, solicitado ${item.cantidad}`)
-    }
-  }
+  // Nota: la validación de stock se realiza DENTRO de la transacción en pos.repository.ts
+  // para evitar race conditions entre requests simultáneos.
 
   const turnoActivo = await repo.getTurnoActivo(tenantId)
   if (!turnoActivo || turnoActivo.id !== input.turnoId) throw new Error('No hay turno activo o el turnoId no coincide')
