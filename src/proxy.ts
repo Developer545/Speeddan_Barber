@@ -15,6 +15,8 @@ function getSecret() {
 const PUBLIC_PREFIXES = [
   '/login',
   '/api/auth',
+  '/api/tenant/verify',
+  '/api/public',
   '/api/book',
   '/api/superadmin',
   '/book',
