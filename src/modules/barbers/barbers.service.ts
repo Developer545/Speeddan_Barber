@@ -49,9 +49,10 @@ export async function updateBarber(id: number, tenantId: number, body: unknown) 
   const existing = await repo.findBarberById(id, tenantId);
   if (!existing) throw new NotFoundError('Barbero');
 
-  const data = body as { bio?: string; specialties?: string[]; active?: boolean };
+  const data = body as { bio?: string; cargo?: string; specialties?: string[]; active?: boolean };
   const updated = await repo.updateBarber(id, tenantId, {
     bio: data.bio,
+    cargo: data.cargo,
     specialties: data.specialties,
     active: data.active,
   });

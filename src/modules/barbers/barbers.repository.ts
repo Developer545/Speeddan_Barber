@@ -37,6 +37,7 @@ export async function findBarberById(id: number, tenantId: number) {
 
 export type BarberUpdateInput = {
   bio?: string;
+  cargo?: string;
   specialties?: string[];
   active?: boolean;
 };
@@ -47,6 +48,7 @@ export type BarberCreateInput = {
   password:    string;
   phone?:      string;
   bio?:        string;
+  cargo?:      string;
   specialties?: string[];
 };
 
@@ -72,6 +74,7 @@ export async function createBarber(tenantId: number, data: BarberCreateInput) {
         tenantId,
         userId:      user.id,
         bio:         data.bio?.trim(),
+        cargo:       data.cargo?.trim() || 'Barbero',
         specialties: data.specialties ?? [],
         active:      true,
       },
@@ -92,6 +95,7 @@ export async function updateBarber(id: number, tenantId: number, data: BarberUpd
     where: { id },
     data: {
       ...(data.bio !== undefined && { bio: data.bio }),
+      ...(data.cargo !== undefined && { cargo: data.cargo }),
       ...(data.specialties !== undefined && { specialties: data.specialties }),
       ...(data.active !== undefined && { active: data.active }),
     },

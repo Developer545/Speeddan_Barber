@@ -43,6 +43,7 @@ export default async function PlanillaPage() {
   const barberosSer = barberos.map(b => ({
     id:                 b.id,
     nombre:             b.user.fullName,
+    cargo:              b.cargo ?? 'Barbero',
     tipoPago:           b.configPlanilla?.tipoPago ?? null,
     fechaIngreso:       b.configPlanilla?.fechaIngreso?.toISOString() ?? null,
     salarioBase:        b.configPlanilla?.salarioBase.toNumber() ?? 0,

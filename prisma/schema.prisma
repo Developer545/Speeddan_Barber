@@ -187,6 +187,7 @@ model Barber {
   userId      Int          @unique
   user        BarberUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
   bio         String?
+  cargo       String?      @default("Barbero")
   specialties String[]     @default([])
   active      Boolean      @default(true)
   createdAt   DateTime     @default(now())

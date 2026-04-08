@@ -38,6 +38,123 @@ export interface PlanillaViewerData {
   detalles: PlanillaDetalle[]
 }
 
+// ─── Constancia laboral ───────────────────────────────────────────────────────
+
+export interface ConstanciaLaboralData {
+  nombre:       string;
+  cargo:        string;
+  fechaIngreso: string | null;  // ISO string o null
+  salario:      number;
+  tipoPago:     string;
+  negocio:      string;
+  proposito:    string;         // "para trámites bancarios", "para arrendamiento", etc.
+}
+
+export function abrirConstanciaLaboral(data: ConstanciaLaboralData) {
+  const html = generarHtmlConstancia(data)
+  const win = window.open('', '_blank', 'width=620,height=820,scrollbars=yes')
+  if (win) { win.document.write(html); win.document.close() }
+}
+
+function generarHtmlConstancia(d: ConstanciaLaboralData): string {
+  const fechaHoy = new Date().toLocaleDateString('es-SV', { year: 'numeric', month: 'long', day: 'numeric' })
+  const fechaIngresoFmt = d.fechaIngreso
+    ? new Date(d.fechaIngreso).toLocaleDateString('es-SV', { year: 'numeric', month: 'long', day: 'numeric' })
+    : 'fecha de inicio de labores'
+
+  const salarioTexto = d.tipoPago === 'FIJO'
+    ? `un salario mensual de ${fmt(d.salario)}`
+    : `ingresos variables según modalidad de pago (${TIPO_PAGO_LABELS[d.tipoPago] ?? d.tipoPago})`
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Constancia Laboral — ${d.nombre}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#222;background:#e5e7eb}
+    @media print{
+      body{background:#fff}
+      .no-print{display:none!important}
+      @page{size:letter;margin:20mm}
+    }
+    .toolbar{background:#1f2937;color:#fff;padding:8px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:10}
+    .toolbar span{flex:1;font-size:13px}
+    .btn{padding:6px 16px;border:none;border-radius:5px;font-size:12px;cursor:pointer;font-weight:600}
+    .btn-print{background:#0d9488;color:#fff}
+    .btn-close{background:#6b7280;color:#fff}
+    .page{width:180mm;min-height:250mm;background:#fff;margin:24px auto;padding:20mm 22mm;box-shadow:0 4px 20px rgba(0,0,0,0.15);line-height:1.7}
+    .header{text-align:center;border-bottom:3px solid #0d9488;padding-bottom:16px;margin-bottom:28px}
+    .negocio{font-size:22px;font-weight:800;color:#0d9488;letter-spacing:.5px}
+    .titulo-doc{font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#374151;margin-top:10px}
+    .cuerpo{font-size:13px;color:#222;text-align:justify}
+    .cuerpo p{margin-bottom:14px}
+    .highlight{font-weight:700;color:#0d9488}
+    .firma-section{margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:40px}
+    .firma-box{text-align:center}
+    .firma-line{border-top:1px solid #374151;padding-top:6px;font-size:11px;color:#555;margin-top:48px}
+    .footer{margin-top:28px;padding-top:10px;border-top:1px dashed #d1d5db;text-align:center;font-size:10px;color:#9ca3af}
+    .sello{margin-top:24px;width:90px;height:90px;border:2px dashed #d1d5db;border-radius:50%;margin-left:auto;margin-right:auto;display:flex;align-items:center;justify-content:center;color:#d1d5db;font-size:10px;text-align:center;padding:8px}
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <span>📄 Constancia Laboral — ${d.nombre}</span>
+    <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / PDF</button>
+    <button class="btn btn-close" onclick="window.close()">✕ Cerrar</button>
+  </div>
+
+  <div class="page">
+    <div class="header">
+      <div class="negocio">✂ ${d.negocio}</div>
+      <div class="titulo-doc">Constancia Laboral</div>
+    </div>
+
+    <div class="cuerpo">
+      <p>San Salvador, ${fechaHoy}</p>
+
+      <p>A quien corresponda:</p>
+
+      <p>
+        Por medio de la presente, <span class="highlight">${d.negocio}</span> hace constar que
+        el(la) señor(a) <span class="highlight">${d.nombre}</span> labora en esta empresa
+        desempeñando el cargo de <span class="highlight">${d.cargo}</span>,
+        desde el <span class="highlight">${fechaIngresoFmt}</span>,
+        devengando ${salarioTexto}.
+      </p>
+
+      <p>
+        Al momento de emisión de la presente constancia, el(la) colaborador(a) se encuentra
+        activo(a) y en pleno goce de sus derechos laborales conforme a la legislación
+        salvadoreña vigente.
+      </p>
+
+      <p>
+        La presente constancia se extiende ${d.proposito}, a solicitud del(la) interesado(a),
+        para los usos legales que convengan.
+      </p>
+
+      <p>Sin otro particular, se suscribe atentamente,</p>
+    </div>
+
+    <div class="firma-section">
+      <div class="firma-box">
+        <div class="firma-line">Firma y Sello del Empleador<br>${d.negocio}</div>
+      </div>
+      <div class="firma-box">
+        <div class="sello">SELLO</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Constancia emitida el ${fechaHoy} · ${d.negocio} · Speeddan ERP
+    </div>
+  </div>
+</body>
+</html>`
+}
+
 const TIPO_PAGO_LABELS: Record<string, string> = {
   FIJO: 'Salario Fijo', POR_DIA: 'Por Día',
   POR_SEMANA: 'Por Semana', POR_HORA: 'Por Hora', POR_SERVICIO: 'Por Servicio',

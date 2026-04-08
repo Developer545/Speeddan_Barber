@@ -15,7 +15,7 @@ import {
   PrinterOutlined, DollarCircleOutlined, FilePdfOutlined,
 } from '@ant-design/icons';
 import {
-  abrirPlanillaPDF, abrirComprobanteBarbero,
+  abrirPlanillaPDF, abrirComprobanteBarbero, abrirConstanciaLaboral,
   type PlanillaViewerData, type PlanillaDetalle,
 } from '@/lib/planilla-viewer';
 import { toast } from 'sonner';
@@ -40,7 +40,7 @@ interface Planilla {
   createdAt?: string;
 }
 interface BarberoResumen {
-  id: number; nombre: string; tipoPago: string | null;
+  id: number; nombre: string; cargo: string; tipoPago: string | null;
   salarioBase: number; valorPorUnidad: number;
   porcentajeServicio: number; aplicaRenta: boolean;
   fechaIngreso: string | null; configurado: boolean;
@@ -112,6 +112,8 @@ export default function PlanillaClient({
   const [anioQuincena,  setAnioQuincena]   = useState(Math.max(new Date().getFullYear(), 2027));
   const [completo, setCompleto]            = useState(false);
   const [printingId, setPrintingId]        = useState<number | null>(null);
+  const [modalConstancia, setModalConstancia] = useState<BarberoResumen | null>(null);
+  const [constanciaProposito, setConstanciaProposito] = useState('para los fines que convengan');
 
   // Form generación
   const [periodo, setPeriodo]   = useState<string>('');
@@ -409,17 +411,26 @@ export default function PlanillaClient({
     {
       title: 'Acciones',
       render: (r: BarberoResumen) => (
-        <Button size="small" icon={<EditOutlined />}
-          onClick={() => {
-            setFormConfig({
-              tipoPago: r.tipoPago || 'FIJO', salarioBase: r.salarioBase || 0,
-              valorPorUnidad: r.valorPorUnidad || 0, porcentajeServicio: r.porcentajeServicio || 0,
-              aplicaRenta: r.aplicaRenta ?? true, fechaIngreso: r.fechaIngreso,
-            });
-            setModalConfig(r);
-          }}>
-          {r.configurado ? 'Editar' : 'Configurar'}
-        </Button>
+        <Space size={4}>
+          <Button size="small" icon={<EditOutlined />}
+            onClick={() => {
+              setFormConfig({
+                tipoPago: r.tipoPago || 'FIJO', salarioBase: r.salarioBase || 0,
+                valorPorUnidad: r.valorPorUnidad || 0, porcentajeServicio: r.porcentajeServicio || 0,
+                aplicaRenta: r.aplicaRenta ?? true, fechaIngreso: r.fechaIngreso,
+              });
+              setModalConfig(r);
+            }}>
+            {r.configurado ? 'Editar' : 'Configurar'}
+          </Button>
+          <Tooltip title="Generar constancia laboral">
+            <Button
+              size="small"
+              icon={<FilePdfOutlined />}
+              onClick={() => { setConstanciaProposito('para los fines que convengan'); setModalConstancia(r); }}
+            />
+          </Tooltip>
+        </Space>
       ),
     },
   ];
@@ -1167,6 +1178,60 @@ export default function PlanillaClient({
               checkedChildren="Sí" unCheckedChildren="No" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* ── Modal: Constancia Laboral ── */}
+      <Modal
+        open={!!modalConstancia}
+        title={<span><FilePdfOutlined /> Constancia Laboral — {modalConstancia?.nombre}</span>}
+        onCancel={() => setModalConstancia(null)}
+        onOk={() => {
+          if (!modalConstancia) return;
+          abrirConstanciaLaboral({
+            nombre:       modalConstancia.nombre,
+            cargo:        modalConstancia.cargo || 'Barbero',
+            fechaIngreso: modalConstancia.fechaIngreso,
+            salario:      modalConstancia.salarioBase,
+            tipoPago:     modalConstancia.tipoPago || 'FIJO',
+            negocio,
+            proposito:    constanciaProposito,
+          });
+          setModalConstancia(null);
+        }}
+        okText="Generar Constancia"
+        okButtonProps={{ style: { background: '#0d9488', borderColor: '#0d9488' } }}
+        width="min(420px, 96vw)"
+      >
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ marginBottom: 16 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Empleado: <strong>{modalConstancia?.nombre}</strong> · Cargo: <strong>{modalConstancia?.cargo || 'Barbero'}</strong>
+            </Text>
+            {modalConstancia?.fechaIngreso && (
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                Fecha ingreso: {dayjs(modalConstancia.fechaIngreso).format('DD/MM/YYYY')}
+              </div>
+            )}
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 8 }}>Propósito de la constancia:</Text>
+            <Select
+              style={{ width: '100%' }}
+              value={constanciaProposito}
+              onChange={setConstanciaProposito}
+              options={[
+                { value: 'para los fines que convengan',          label: 'Uso general' },
+                { value: 'para trámites bancarios',               label: 'Trámites bancarios' },
+                { value: 'para trámites de arrendamiento',        label: 'Arrendamiento / alquiler' },
+                { value: 'para trámites de visa',                 label: 'Trámites de visa' },
+                { value: 'para trámites de crédito',              label: 'Crédito / financiamiento' },
+                { value: 'para presentar ante el ISSS',           label: 'ISSS' },
+                { value: 'para presentar ante el AFP',            label: 'AFP' },
+                { value: 'para trámites legales y administrativos', label: 'Trámites legales' },
+              ]}
+            />
+          </div>
+        </div>
       </Modal>
     </div>
   );

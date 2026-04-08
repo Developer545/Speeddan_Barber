@@ -30,10 +30,10 @@ const { Title, Text } = Typography;
 type Schedule   = { dayOfWeek: number; startTime: string; endTime: string; active: boolean };
 type BarberUser = { id: number; fullName: string; email: string; phone: string | null; avatarUrl: string | null; active: boolean };
 type Barber = {
-  id: number; bio: string | null; specialties: string[]; active: boolean;
+  id: number; bio: string | null; cargo: string | null; specialties: string[]; active: boolean;
   scheduleText: string; user: BarberUser; schedules: Schedule[];
 };
-type CreateForm = { fullName: string; email: string; password: string; phone: string; bio: string; specialtiesInput: string };
+type CreateForm = { fullName: string; email: string; password: string; phone: string; bio: string; cargo: string; specialtiesInput: string };
 
 // Iniciales para el Avatar de antd
 function getInitials(name: string) {
@@ -71,11 +71,12 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
   const [showPass,      setShowPass]      = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError,   setCreateError]   = useState('');
-  const [form, setForm] = useState<CreateForm>({ fullName: '', email: '', password: '', phone: '', bio: '', specialtiesInput: '' });
+  const [form, setForm] = useState<CreateForm>({ fullName: '', email: '', password: '', phone: '', bio: '', cargo: '', specialtiesInput: '' });
 
   // Estado editar
   const [editing,          setEditing]          = useState<Barber | null>(null);
   const [bio,              setBio]              = useState('');
+  const [cargo,            setCargo]            = useState('');
   const [specialtiesInput, setSpecialtiesInput] = useState('');
   const [editLoading,      setEditLoading]      = useState(false);
 
@@ -99,6 +100,7 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
           password:   form.password,
           phone:      form.phone.trim()  || undefined,
           bio:        form.bio.trim()    || undefined,
+          cargo:      form.cargo.trim()  || undefined,
           specialties,
         }),
       });
@@ -113,7 +115,7 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
 
   // ── Editar ─────────────────────────────────────────────
   function openEdit(b: Barber) {
-    setEditing(b); setBio(b.bio ?? ''); setSpecialtiesInput(b.specialties.join(', '));
+    setEditing(b); setBio(b.bio ?? ''); setCargo(b.cargo ?? ''); setSpecialtiesInput(b.specialties.join(', '));
   }
 
   async function saveEdit() {
@@ -123,7 +125,7 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
       const specialties = specialtiesInput.split(',').map(s => s.trim()).filter(Boolean);
       const res = await fetch(`/api/barbers/${editing.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bio, specialties }),
+        body: JSON.stringify({ bio, cargo, specialties }),
       });
       const json = await res.json();
       if (res.ok) {
@@ -160,6 +162,14 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
       render:    (_, r) => r.user.phone
         ? <Text style={{ fontSize: 12 }}>{r.user.phone}</Text>
         : <Text type="secondary">—</Text>,
+    },
+    {
+      title:  'Cargo',
+      key:    'cargo',
+      width:  130,
+      render: (_, r) => (
+        <Text style={{ fontSize: 12 }}>{r.cargo ?? 'Barbero'}</Text>
+      ),
     },
     {
       title:  'Especialidades',
@@ -333,6 +343,9 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
             <FormField label="Teléfono">
               <SdInput value={form.phone} onChange={e => setField('phone', e.target.value)} placeholder="+503 7000-0000" />
             </FormField>
+            <FormField label="Cargo / Puesto">
+              <SdInput value={form.cargo} onChange={e => setField('cargo', e.target.value)} placeholder="Barbero, Estilista, Supervisor…" />
+            </FormField>
             <FormField label="Biografía">
               <SdInput value={form.bio} onChange={e => setField('bio', e.target.value)} placeholder="Especialista en fades…" />
             </FormField>
@@ -355,8 +368,11 @@ export default function BarbersClient({ initialBarbers }: { initialBarbers: Barb
             <DialogTitle>Editar perfil — {editing?.user.fullName}</DialogTitle>
           </DialogHeader>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0' }}>
+            <FormField label="Cargo / Puesto">
+              <SdInput value={cargo} onChange={e => setCargo(e.target.value)} placeholder="Barbero, Estilista, Supervisor…" autoFocus />
+            </FormField>
             <FormField label="Biografía">
-              <SdInput value={bio} onChange={e => setBio(e.target.value)} placeholder="Descripción del barbero…" autoFocus />
+              <SdInput value={bio} onChange={e => setBio(e.target.value)} placeholder="Descripción del barbero…" />
             </FormField>
             <FormField label="Especialidades (separadas por coma)">
               <SdInput value={specialtiesInput} onChange={e => setSpecialtiesInput(e.target.value)} placeholder="Fade, Barba, Diseño…" />
