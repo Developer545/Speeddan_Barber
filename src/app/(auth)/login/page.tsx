@@ -133,7 +133,7 @@ export default function LoginPage() {
   const brandName = branding.brandName || DEFAULT_BRANDING.brandName;
   const brandTagline = sector === 'salon' ? theme.tagline : branding.tagline || DEFAULT_BRANDING.tagline;
   const features = sector === 'salon' ? theme.features : (branding.features?.length === 3 ? branding.features : DEFAULT_BRANDING.features);
-  const heading = tenant?.name ?? theme.headerName;
+  const heading = tenant?.name ?? (sector === 'neutral' ? brandName : theme.headerName);
 
   const setInputState = (element: HTMLInputElement, focused: boolean) => {
     element.style.borderColor = focused ? theme.focus : theme.inputBorder;
