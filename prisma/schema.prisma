@@ -58,6 +58,11 @@ enum BarberPaymentStatus {
   REFUNDED
 }
 
+enum BusinessType {
+  BARBERIA
+  SALON
+}
+
 // ──────────────────────────────────────────────────────
 // TENANT — cada barbería es un tenant aislado
 // themeConfig: JSON con overrides de CSS variables
@@ -82,7 +87,8 @@ model BarberTenant {
   phone       String?
   email       String?
   city        String?
-  country     String             @default("SV")
+  country      String             @default("SV")
+  businessType BusinessType       @default(BARBERIA)
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   deletedAt   DateTime?
@@ -139,9 +145,17 @@ model BarberUser {
   tenant    BarberTenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   email     String
   password  String
-  fullName  String
-  phone     String?
-  avatarUrl String?
+  fullName        String
+  phone           String?
+  // ── Datos fiscales DTE (CAT-009/012/013 MH El Salvador) ──
+  tipoDocumento   String?  // "13"=DUI, "36"=NIT, "37"=Pasaporte, "03"=Cédula ext.
+  numDocumento    String?  // número sin guiones
+  nrc             String?  // NRC para contribuyentes (NIT)
+  nombreComercial String?  // razón comercial (empresas)
+  departamentoCod String?  // CAT-012
+  municipioCod    String?  // CAT-013
+  complemento     String?  // dirección adicional
+  avatarUrl       String?
   role      BarberUserRole @default(CLIENT)
   active    Boolean        @default(true)
   createdAt DateTime       @default(now())
@@ -914,4 +928,30 @@ model BarberGlobalConfig {
   updatedAt DateTime @updatedAt
 
   @@map("barber_global_config")
+}
+
+// ══════════════════════════════════════════════════════
+// CATÁLOGO MH — Departamentos y Municipios El Salvador
+// CAT-012 (departamentos) y CAT-013 (municipios)
+// Sin tenantId — catálogo global compartido
+// ══════════════════════════════════════════════════════
+
+model BarberDepartamento {
+  id         Int               @id @default(autoincrement())
+  codigo     String            @unique  // "01"-"14"
+  nombre     String
+  municipios BarberMunicipio[]
+
+  @@map("barber_departamentos")
+}
+
+model BarberMunicipio {
+  id              Int                @id @default(autoincrement())
+  codigo          String             // código MH (único dentro del departamento)
+  nombre          String
+  departamentoCod String
+  departamento    BarberDepartamento @relation(fields: [departamentoCod], references: [codigo])
+
+  @@unique([departamentoCod, codigo])
+  @@map("barber_municipios")
 }

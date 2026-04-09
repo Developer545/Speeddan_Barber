@@ -7,24 +7,29 @@
  * Solo expone campos públicos. No requiere autenticación.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import type { BusinessType } from '@prisma/client';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const type = req.nextUrl.searchParams.get('type') as BusinessType | null;
+
   try {
     const tenants = await prisma.barberTenant.findMany({
       where: {
         status: { in: ['ACTIVE', 'TRIAL'] },
         deletedAt: null,
+        ...(type && { businessType: type }),
       },
       select: {
-        id:      true,
-        name:    true,
-        slug:    true,
-        city:    true,
-        address: true,
-        phone:   true,
-        logoUrl: true,
+        id:           true,
+        name:         true,
+        slug:         true,
+        city:         true,
+        address:      true,
+        phone:        true,
+        logoUrl:      true,
+        businessType: true,
       },
       orderBy: { name: 'asc' },
     });

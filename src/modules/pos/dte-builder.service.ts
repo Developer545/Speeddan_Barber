@@ -24,13 +24,21 @@ export interface DTEEmisor {
   email?: string
 }
 
+export interface DTEReceptorDireccion {
+  departamento: string  // código CAT-012
+  municipio: string     // código CAT-013
+  complemento: string   // calle, colonia, número
+}
+
 export interface DTEReceptor {
   nombre: string
-  tipoDocumento?: string | null // '13'=DUI, '36'=NIT
+  tipoDocumento?: string | null // '13'=DUI, '36'=NIT, '37'=Pasaporte, etc.
   numDocumento?: string | null
   nrc?: string | null
+  nombreComercial?: string | null
   descActividad?: string | null
   correo?: string | null
+  direccion?: DTEReceptorDireccion | null
 }
 
 export interface DTEPago {
@@ -169,12 +177,14 @@ export function buildDTE(input: BuildDTEInput): DTEJson {
       codPuntoVentaMH: '0001',
     },
     receptor: {
-      nombre: receptor.nombre || 'Consumidor Final',
-      tipoDocumento: receptor.tipoDocumento || null,
-      numDocumento: receptor.numDocumento || null,
-      nrc: receptor.nrc || null,
-      descActividad: receptor.descActividad || null,
-      correo: receptor.correo || null,
+      nombre:          receptor.nombre || 'Consumidor Final',
+      tipoDocumento:   receptor.tipoDocumento   || null,
+      numDocumento:    receptor.numDocumento    || null,
+      nrc:             receptor.nrc             || null,
+      nombreComercial: receptor.nombreComercial || null,
+      descActividad:   receptor.descActividad   || null,
+      correo:          receptor.correo          || null,
+      direccion:       receptor.direccion        || null,
     },
     cuerpoDocumento: cuerpo,
     resumen: {

@@ -22,12 +22,13 @@ export const tenantsService = {
     const tenant = await tenantsRepository.findBySlug(slug);
     if (!tenant) throw new NotFoundError('Empresa');
     return {
-      id:          tenant.id,
-      slug:        tenant.slug,
-      name:        tenant.name,
-      logoUrl:     tenant.logoUrl,
-      status:      tenant.status,
-      themeConfig: tenant.themeConfig,
+      id:           tenant.id,
+      slug:         tenant.slug,
+      name:         tenant.name,
+      logoUrl:      tenant.logoUrl,
+      status:       tenant.status,
+      themeConfig:  tenant.themeConfig,
+      businessType: tenant.businessType,
     };
   },
 };

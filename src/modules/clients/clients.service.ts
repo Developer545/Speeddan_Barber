@@ -42,11 +42,27 @@ export async function createClientUser(tenantId: number, raw: unknown) {
     throw new ValidationError('El email no es válido');
   }
 
+  const tipoDocumento = data.tipoDocumento ? String(data.tipoDocumento).trim() : undefined;
+  const numDocumento  = data.numDocumento  ? String(data.numDocumento).trim()  : undefined;
+
+  // Si viene NIT (36) sin NRC, es válido (NRC es opcional)
+  // Si viene tipoDocumento, debe venir numDocumento
+  if (tipoDocumento && !numDocumento) {
+    throw new ValidationError('Si especifica tipo de documento, debe ingresar el número de documento');
+  }
+
   const input: ClientCreateInput = {
-    fullName: String(data.fullName).trim(),
-    email:    String(data.email).trim().toLowerCase(),
-    phone:    data.phone ? String(data.phone).trim() : undefined,
-    password: data.password ? String(data.password) : undefined,
+    fullName:        String(data.fullName).trim(),
+    email:           String(data.email).trim().toLowerCase(),
+    phone:           data.phone ? String(data.phone).trim() : undefined,
+    password:        data.password ? String(data.password) : undefined,
+    tipoDocumento,
+    numDocumento,
+    nrc:             data.nrc             ? String(data.nrc).trim()             : undefined,
+    nombreComercial: data.nombreComercial ? String(data.nombreComercial).trim() : undefined,
+    departamentoCod: data.departamentoCod ? String(data.departamentoCod).trim() : undefined,
+    municipioCod:    data.municipioCod    ? String(data.municipioCod).trim()    : undefined,
+    complemento:     data.complemento     ? String(data.complemento).trim()     : undefined,
   };
 
   // Email único dentro del tenant
@@ -79,9 +95,16 @@ export async function updateClientUser(tenantId: number, id: number, raw: unknow
   }
 
   const input: ClientUpdateInput = {
-    ...(data.fullName ? { fullName: String(data.fullName).trim() } : {}),
-    ...(data.email    ? { email:    String(data.email).trim().toLowerCase() } : {}),
-    ...(data.phone !== undefined ? { phone: data.phone ? String(data.phone).trim() : undefined } : {}),
+    ...(data.fullName        ? { fullName:        String(data.fullName).trim() } : {}),
+    ...(data.email           ? { email:           String(data.email).trim().toLowerCase() } : {}),
+    ...(data.phone           !== undefined ? { phone:           data.phone           ? String(data.phone).trim()           : undefined } : {}),
+    ...(data.tipoDocumento   !== undefined ? { tipoDocumento:   data.tipoDocumento   ? String(data.tipoDocumento).trim()   : undefined } : {}),
+    ...(data.numDocumento    !== undefined ? { numDocumento:    data.numDocumento    ? String(data.numDocumento).trim()    : undefined } : {}),
+    ...(data.nrc             !== undefined ? { nrc:             data.nrc             ? String(data.nrc).trim()             : undefined } : {}),
+    ...(data.nombreComercial !== undefined ? { nombreComercial: data.nombreComercial ? String(data.nombreComercial).trim() : undefined } : {}),
+    ...(data.departamentoCod !== undefined ? { departamentoCod: data.departamentoCod ? String(data.departamentoCod).trim() : undefined } : {}),
+    ...(data.municipioCod    !== undefined ? { municipioCod:    data.municipioCod    ? String(data.municipioCod).trim()    : undefined } : {}),
+    ...(data.complemento     !== undefined ? { complemento:     data.complemento     ? String(data.complemento).trim()     : undefined } : {}),
   };
 
   return updateClient(id, tenantId, input);

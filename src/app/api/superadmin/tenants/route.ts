@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSuperadminKey, unauthorizedResponse } from '@/lib/superadmin-auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import type { BarberPlan, BarberTenantStatus } from '@prisma/client';
+import type { BarberPlan, BarberTenantStatus, BusinessType } from '@prisma/client';
 
 const TENANT_SELECT = {
   id: true, slug: true, name: true, plan: true, status: true,
   trialEndsAt: true, paidUntil: true, suspendedAt: true,
   maxBarbers: true, email: true, phone: true, city: true, country: true,
-  logoUrl: true, createdAt: true, updatedAt: true,
+  businessType: true, logoUrl: true, createdAt: true, updatedAt: true,
   _count: { select: { users: true, barbers: true, appointments: true } },
 } as const;
 
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as {
     name: string; slug: string; email?: string; phone?: string; city?: string;
     plan?: BarberPlan; maxBarbers?: number; paidUntil?: string;
+    businessType?: BusinessType;
     owner?: { fullName: string; email: string; password: string };
   };
 
@@ -79,8 +80,9 @@ export async function POST(req: NextRequest) {
       email:      body.email,
       phone:      body.phone,
       city:       body.city,
-      plan:       body.plan ?? 'TRIAL',
-      maxBarbers: body.maxBarbers ?? 3,
+      plan:         body.plan ?? 'TRIAL',
+      businessType: body.businessType ?? 'BARBERIA',
+      maxBarbers:   body.maxBarbers ?? 3,
       paidUntil:  body.paidUntil ? new Date(body.paidUntil) : undefined,
       trialEndsAt,
     },

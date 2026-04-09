@@ -6,21 +6,37 @@
 import { prisma } from '@/lib/prisma';
 
 export type ClientCreateInput = {
-  email: string;
-  fullName: string;
-  phone?: string;
-  password?: string;
+  email:           string;
+  fullName:        string;
+  phone?:          string;
+  password?:       string;
+  // Datos fiscales DTE
+  tipoDocumento?:   string;
+  numDocumento?:    string;
+  nrc?:             string;
+  nombreComercial?: string;
+  departamentoCod?: string;
+  municipioCod?:    string;
+  complemento?:     string;
 };
 
 export type ClientUpdateInput = Partial<Omit<ClientCreateInput, 'password'>>;
 
 const CLIENT_SELECT = {
-  id:        true,
-  email:     true,
-  fullName:  true,
-  phone:     true,
-  active:    true,
-  createdAt: true,
+  id:              true,
+  email:           true,
+  fullName:        true,
+  phone:           true,
+  active:          true,
+  createdAt:       true,
+  // Datos fiscales
+  tipoDocumento:   true,
+  numDocumento:    true,
+  nrc:             true,
+  nombreComercial: true,
+  departamentoCod: true,
+  municipioCod:    true,
+  complemento:     true,
 } as const;
 
 export async function findAllClients(tenantId: number) {
@@ -87,12 +103,19 @@ export async function createClient(tenantId: number, data: ClientCreateInput) {
   return prisma.barberUser.create({
     data: {
       tenantId,
-      email:    data.email,
-      fullName: data.fullName,
-      phone:    data.phone,
+      email:           data.email,
+      fullName:        data.fullName,
+      phone:           data.phone,
       password,
-      role:     'CLIENT',
-      active:   true,
+      role:            'CLIENT',
+      active:          true,
+      tipoDocumento:   data.tipoDocumento,
+      numDocumento:    data.numDocumento,
+      nrc:             data.nrc,
+      nombreComercial: data.nombreComercial,
+      departamentoCod: data.departamentoCod,
+      municipioCod:    data.municipioCod,
+      complemento:     data.complemento,
     },
     select: CLIENT_SELECT,
   });
@@ -102,9 +125,16 @@ export async function updateClient(id: number, tenantId: number, data: ClientUpd
   return prisma.barberUser.update({
     where:  { id },
     data: {
-      ...(data.fullName !== undefined && { fullName: data.fullName }),
-      ...(data.email    !== undefined && { email:    data.email }),
-      ...(data.phone    !== undefined && { phone:    data.phone }),
+      ...(data.fullName        !== undefined && { fullName:        data.fullName }),
+      ...(data.email           !== undefined && { email:           data.email }),
+      ...(data.phone           !== undefined && { phone:           data.phone }),
+      ...(data.tipoDocumento   !== undefined && { tipoDocumento:   data.tipoDocumento || null }),
+      ...(data.numDocumento    !== undefined && { numDocumento:    data.numDocumento || null }),
+      ...(data.nrc             !== undefined && { nrc:             data.nrc || null }),
+      ...(data.nombreComercial !== undefined && { nombreComercial: data.nombreComercial || null }),
+      ...(data.departamentoCod !== undefined && { departamentoCod: data.departamentoCod || null }),
+      ...(data.municipioCod    !== undefined && { municipioCod:    data.municipioCod || null }),
+      ...(data.complemento     !== undefined && { complemento:     data.complemento || null }),
     },
     select: CLIENT_SELECT,
   });

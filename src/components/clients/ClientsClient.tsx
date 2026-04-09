@@ -1,24 +1,23 @@
 'use client';
 
 // ══════════════════════════════════════════════════════════
-// CLIENTES — CRUD COMPLETO (patrón Speeddansys ERP)
+// CLIENTES — CRUD COMPLETO con datos fiscales DTE
 // ══════════════════════════════════════════════════════════
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import {
   Table, Card, Input, Button, Space, Row, Col,
-  Statistic, Tag, Tooltip, Popconfirm, Typography,
+  Statistic, Tag, Tooltip, Popconfirm, Typography, Select, Divider, Radio,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   SearchOutlined, PlusOutlined, ReloadOutlined,
   TeamOutlined, EditOutlined, DeleteOutlined,
-  PhoneOutlined, CheckCircleOutlined, MailOutlined,
+  PhoneOutlined, CheckCircleOutlined, MailOutlined, IdcardOutlined,
 } from '@ant-design/icons';
 
-// Componentes internos del formulario (react-hook-form)
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button as SdButton }  from '@/components/ui/button';
 import { Input as SdInput }    from '@/components/ui/input';
@@ -31,37 +30,97 @@ const { Title, Text } = Typography;
 type Client = {
   id: number; fullName: string; email: string; phone: string | null;
   active: boolean; createdAt: string; totalAppointments: number; lastVisit: string | null;
+  tipoDocumento: string | null; numDocumento: string | null; nrc: string | null;
+  nombreComercial: string | null; departamentoCod: string | null;
+  municipioCod: string | null; complemento: string | null;
 };
-type FormValues = { fullName: string; email: string; phone: string };
+
+type FormValues = { fullName: string; email: string; phone: string; numDocumento: string; nrc: string; nombreComercial: string; complemento: string };
+
+type Departamento = { id: number; codigo: string; nombre: string; totalMunicipios: number };
+type Municipio    = { id: number; codigo: string; nombre: string; departamentoCod: string; departamento: { nombre: string } };
+
+const TIPO_PERSONA_OPTIONS = [
+  { label: 'Persona Natural', value: 'NATURAL' },
+  { label: 'Empresa / Jurídica', value: 'JURIDICA' },
+];
+
+const TIPO_DOC_NATURAL = [
+  { label: 'DUI (13)', value: '13' },
+  { label: 'Pasaporte (37)', value: '37' },
+  { label: 'Cédula extranjera (03)', value: '03' },
+  { label: 'Carnet de residente (02)', value: '02' },
+];
+
+const TIPO_DOC_LABELS: Record<string, string> = {
+  '13': 'DUI', '36': 'NIT', '37': 'Pasaporte', '03': 'Cédula ext.', '02': 'Carnet res.',
+};
 
 function formatDate(iso: string | null) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontSize: 12, fontWeight: 500, color: '#595959', marginBottom: 4 }}>{children}</div>;
+}
+
 // ── Componente ─────────────────────────────────────────────────────────────
 
 export default function ClientsClient({ initialClients }: { initialClients: Client[] }) {
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [open,    setOpen]    = useState(false);
-  const [editing, setEditing] = useState<Client | null>(null);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState('');
-  const [search,  setSearch]  = useState('');
+  const [clients,       setClients]       = useState<Client[]>(initialClients);
+  const [open,          setOpen]          = useState(false);
+  const [editing,       setEditing]       = useState<Client | null>(null);
+  const [saving,        setSaving]        = useState(false);
+  const [error,         setError]         = useState('');
+  const [search,        setSearch]        = useState('');
+
+  // Datos fiscales (estado local — selects no bindeados a react-hook-form)
+  const [tipoPersona,    setTipoPersona]    = useState<'NATURAL' | 'JURIDICA'>('NATURAL');
+  const [tipoDocumento,  setTipoDocumento]  = useState<string | undefined>(undefined);
+  const [departamentoCod, setDepartamentoCod] = useState<string | undefined>(undefined);
+  const [municipioCod,   setMunicipioCod]   = useState<string | undefined>(undefined);
+
+  // Catálogos MH
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [municipios,    setMunicipios]    = useState<Municipio[]>([]);
+  const [loadingMunis,  setLoadingMunis]  = useState(false);
 
   const { register, handleSubmit, reset } = useForm<FormValues>();
+
+  // Cargar departamentos al montar
+  useEffect(() => {
+    fetch('/api/settings/departamentos')
+      .then(r => r.json())
+      .then(json => { if (json.success) setDepartamentos(json.data); });
+  }, []);
+
+  // Cargar municipios al cambiar departamento
+  useEffect(() => {
+    if (!departamentoCod) { setMunicipios([]); setMunicipioCod(undefined); return; }
+    setLoadingMunis(true);
+    fetch(`/api/settings/municipios?departamento=${departamentoCod}`)
+      .then(r => r.json())
+      .then(json => { if (json.success) setMunicipios(json.data); })
+      .finally(() => setLoadingMunis(false));
+  }, [departamentoCod]);
 
   // Filtro cliente-side
   const filtered = clients.filter(c =>
     c.fullName.toLowerCase().includes(search.toLowerCase()) ||
     c.email.toLowerCase().includes(search.toLowerCase()) ||
-    (c.phone ?? '').includes(search),
+    (c.phone ?? '').includes(search) ||
+    (c.numDocumento ?? '').includes(search),
   );
 
   // ── Abrir modal crear ──────────────────────────────────
   const handleNuevo = () => {
     setEditing(null);
-    reset({ fullName: '', email: '', phone: '' });
+    reset({ fullName: '', email: '', phone: '', numDocumento: '', nrc: '', nombreComercial: '', complemento: '' });
+    setTipoPersona('NATURAL');
+    setTipoDocumento(undefined);
+    setDepartamentoCod(undefined);
+    setMunicipioCod(undefined);
     setError('');
     setOpen(true);
   };
@@ -69,9 +128,34 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
   // ── Abrir modal editar ─────────────────────────────────
   const handleEditar = (c: Client) => {
     setEditing(c);
-    reset({ fullName: c.fullName, email: c.email, phone: c.phone ?? '' });
+    reset({
+      fullName:        c.fullName,
+      email:           c.email,
+      phone:           c.phone ?? '',
+      numDocumento:    c.numDocumento ?? '',
+      nrc:             c.nrc ?? '',
+      nombreComercial: c.nombreComercial ?? '',
+      complemento:     c.complemento ?? '',
+    });
+    const esJuridica = c.tipoDocumento === '36';
+    setTipoPersona(esJuridica ? 'JURIDICA' : 'NATURAL');
+    setTipoDocumento(c.tipoDocumento ?? undefined);
+    setDepartamentoCod(c.departamentoCod ?? undefined);
+    // Cargar municipios del departamento guardado
+    if (c.departamentoCod) {
+      fetch(`/api/settings/municipios?departamento=${c.departamentoCod}`)
+        .then(r => r.json())
+        .then(json => { if (json.success) setMunicipios(json.data); });
+    }
+    setMunicipioCod(c.municipioCod ?? undefined);
     setError('');
     setOpen(true);
+  };
+
+  // ── Cambio de tipo persona ──────────────────────────────
+  const handleTipoPersonaChange = (val: 'NATURAL' | 'JURIDICA') => {
+    setTipoPersona(val);
+    setTipoDocumento(val === 'JURIDICA' ? '36' : undefined);
   };
 
   // ── Guardar (crear o editar) ───────────────────────────
@@ -79,9 +163,16 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
     setSaving(true); setError('');
     try {
       const body = {
-        fullName: values.fullName.trim(),
-        email:    values.email.trim().toLowerCase(),
-        phone:    values.phone.trim() || undefined,
+        fullName:        values.fullName.trim(),
+        email:           values.email.trim().toLowerCase(),
+        phone:           values.phone.trim() || undefined,
+        tipoDocumento:   tipoDocumento || undefined,
+        numDocumento:    values.numDocumento.trim() || undefined,
+        nrc:             tipoPersona === 'JURIDICA' ? (values.nrc.trim() || undefined) : undefined,
+        nombreComercial: tipoPersona === 'JURIDICA' ? (values.nombreComercial.trim() || undefined) : undefined,
+        departamentoCod: departamentoCod || undefined,
+        municipioCod:    municipioCod || undefined,
+        complemento:     values.complemento.trim() || undefined,
       };
       const url = editing ? `/api/clients/${editing.id}` : '/api/clients';
       const res = await fetch(url, {
@@ -107,24 +198,21 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
     } finally { setSaving(false); }
   }
 
-  // ── Eliminar (sin confirm — usa Popconfirm de antd) ────
+  // ── Eliminar ───────────────────────────────────────────
   async function handleEliminar(c: Client) {
     const res = await fetch(`/api/clients/${c.id}`, { method: 'DELETE' });
     if (res.ok) {
       setClients(prev => prev.filter(x => x.id !== c.id));
       toast.success(`"${c.fullName}" eliminado`);
-    } else {
-      toast.error('No se pudo eliminar');
-    }
+    } else { toast.error('No se pudo eliminar'); }
   }
 
   // ── Activar / desactivar ───────────────────────────────
   async function toggleActive(c: Client) {
     const next = !c.active;
     const res  = await fetch(`/api/clients/${c.id}`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ active: next }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: next }),
     });
     if (res.ok) {
       setClients(prev => prev.map(x => x.id === c.id ? { ...x, active: next } : x));
@@ -132,7 +220,7 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
     } else { toast.error('No se pudo cambiar el estado'); }
   }
 
-  // ── Columnas de la tabla (patrón Speeddansys) ──────────
+  // ── Columnas ───────────────────────────────────────────
   const columns: ColumnsType<Client> = [
     {
       title:  'Cliente',
@@ -140,6 +228,9 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
       render: (_, r) => (
         <div style={{ opacity: r.active ? 1 : 0.5 }}>
           <div style={{ fontWeight: 500 }}>{r.fullName}</div>
+          {r.nombreComercial && (
+            <Text style={{ fontSize: 11, color: '#0d9488' }}>{r.nombreComercial}</Text>
+          )}
           <Space size={4} style={{ marginTop: 2 }}>
             <MailOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
             <Text style={{ fontSize: 12 }} type="secondary">{r.email}</Text>
@@ -148,51 +239,55 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
       ),
     },
     {
-      title:     'Teléfono',
-      dataIndex: 'phone',
-      key:       'phone',
-      width:     140,
-      render:    (v: string | null) => v ? (
+      title:  'Teléfono',
+      key:    'phone',
+      width:  130,
+      render: (_, r) => r.phone ? (
         <Space size={4}>
           <PhoneOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
-          <Text style={{ fontSize: 12 }}>{v}</Text>
+          <Text style={{ fontSize: 12 }}>{r.phone}</Text>
         </Space>
       ) : <Text type="secondary">—</Text>,
     },
     {
-      title:     'Citas',
+      title:  'Documento',
+      key:    'documento',
+      width:  150,
+      render: (_, r) => r.tipoDocumento && r.numDocumento ? (
+        <Space size={4}>
+          <IdcardOutlined style={{ fontSize: 11, color: '#8c8c8c' }} />
+          <div>
+            <Tag style={{ fontSize: 10, padding: '0 4px' }}>{TIPO_DOC_LABELS[r.tipoDocumento] ?? r.tipoDocumento}</Tag>
+            <Text style={{ fontSize: 12 }}>{r.numDocumento}</Text>
+          </div>
+        </Space>
+      ) : <Text type="secondary">—</Text>,
+    },
+    {
+      title:  'Citas',
       dataIndex: 'totalAppointments',
-      key:       'totalAppointments',
-      width:     80,
-      align:     'center',
-      render:    (v: number) => (
-        <Tag color={v > 0 ? 'blue' : 'default'}
-          style={{ fontVariantNumeric: 'tabular-nums', fontWeight: v > 0 ? 600 : 400 }}>
+      key:    'totalAppointments',
+      width:  70,
+      align:  'center',
+      render: (v: number) => (
+        <Tag color={v > 0 ? 'blue' : 'default'} style={{ fontVariantNumeric: 'tabular-nums', fontWeight: v > 0 ? 600 : 400 }}>
           {v}
         </Tag>
       ),
     },
     {
-      title:     'Última visita',
-      dataIndex: 'lastVisit',
-      key:       'lastVisit',
-      width:     140,
-      render:    (v: string | null) => (
-        <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(v)}</Text>
-      ),
+      title:  'Última visita',
+      key:    'lastVisit',
+      width:  130,
+      render: (_, r) => <Text type="secondary" style={{ fontSize: 12 }}>{formatDate(r.lastVisit)}</Text>,
     },
     {
-      title:     'Estado',
-      dataIndex: 'active',
-      key:       'active',
-      width:     100,
-      render:    (v: boolean, r: Client) => (
-        <Tag
-          color={v ? 'success' : 'default'}
-          style={{ cursor: 'pointer' }}
-          onClick={() => toggleActive(r)}
-        >
-          {v ? 'Activo' : 'Inactivo'}
+      title:  'Estado',
+      key:    'active',
+      width:  90,
+      render: (_, r) => (
+        <Tag color={r.active ? 'success' : 'default'} style={{ cursor: 'pointer' }} onClick={() => toggleActive(r)}>
+          {r.active ? 'Activo' : 'Inactivo'}
         </Tag>
       ),
     },
@@ -204,19 +299,12 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
       render: (_, record) => (
         <Space size={4}>
           <Tooltip title="Editar">
-            <Button
-              size="small"
-              type="primary"
-              ghost
-              icon={<EditOutlined />}
-              onClick={() => handleEditar(record)}
-            />
+            <Button size="small" type="primary" ghost icon={<EditOutlined />} onClick={() => handleEditar(record)} />
           </Tooltip>
           <Popconfirm
             title="¿Eliminar este cliente?"
             description="Si tiene citas asociadas se desactivará en su lugar."
-            okText="Eliminar"
-            cancelText="Cancelar"
+            okText="Eliminar" cancelText="Cancelar"
             okButtonProps={{ danger: true }}
             onConfirm={() => handleEliminar(record)}
           >
@@ -230,61 +318,47 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
   ];
 
   // ── KPIs ───────────────────────────────────────────────
-  const activeCount = clients.filter(c => c.active).length;
-  const phoneCount  = clients.filter(c => c.phone).length;
+  const activeCount   = clients.filter(c => c.active).length;
+  const phoneCount    = clients.filter(c => c.phone).length;
+  const docCount      = clients.filter(c => c.numDocumento).length;
 
   return (
     <>
-      {/* ── Estadísticas rápidas (igual que Speeddansys) ── */}
+      {/* ── KPIs ── */}
       <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic
-              title="Total Clientes"
-              value={clients.length}
-              prefix={<TeamOutlined style={{ color: '#0d9488' }} />}
-            />
+            <Statistic title="Total Clientes" value={clients.length} prefix={<TeamOutlined style={{ color: '#0d9488' }} />} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic
-              title="Activos"
-              value={activeCount}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-            />
+            <Statistic title="Activos" value={activeCount} prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic
-              title="Con Teléfono"
-              value={phoneCount}
-              prefix={<PhoneOutlined style={{ color: '#722ed1' }} />}
-            />
+            <Statistic title="Con Teléfono" value={phoneCount} prefix={<PhoneOutlined style={{ color: '#722ed1' }} />} />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
-            <Statistic title="Esta Página" value={filtered.length} />
+            <Statistic title="Con Documento" value={docCount} prefix={<IdcardOutlined style={{ color: '#fa8c16' }} />} />
           </Card>
         </Col>
       </Row>
 
-      {/* ── Tabla principal ───────────────────────────── */}
+      {/* ── Tabla ── */}
       <Card
         title={<Title level={5} style={{ margin: 0 }}>Clientes</Title>}
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleNuevo}>
-            Nuevo cliente
-          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleNuevo}>Nuevo cliente</Button>
         }
       >
-        {/* Barra de búsqueda */}
         <Row gutter={[8, 8]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={14} md={10}>
             <Input
-              placeholder="Buscar por nombre, email o teléfono..."
+              placeholder="Buscar por nombre, email, teléfono o documento..."
               prefix={<SearchOutlined />}
               allowClear
               value={search}
@@ -303,21 +377,17 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
           columns={columns}
           rowKey="id"
           size="small"
-          scroll={{ x: 600 }}
+          scroll={{ x: 700 }}
           pagination={{
-            pageSize:        10,
-            showSizeChanger: true,
-            pageSizeOptions: ['10', '20', '50'],
-            showTotal:       (t, range) => `${range[0]}–${range[1]} de ${t} clientes`,
+            pageSize: 10, showSizeChanger: true, pageSizeOptions: ['10', '20', '50'],
+            showTotal: (t, range) => `${range[0]}–${range[1]} de ${t} clientes`,
           }}
           locale={{
             emptyText: (
               <div style={{ padding: 40, textAlign: 'center' }}>
                 <TeamOutlined style={{ fontSize: 32, color: '#bfbfbf' }} />
                 <div style={{ marginTop: 8, color: '#8c8c8c' }}>
-                  {search
-                    ? 'Sin resultados. Intenta con otro término.'
-                    : 'No hay clientes aún. Usa "+ Nuevo cliente".'}
+                  {search ? 'Sin resultados.' : 'No hay clientes aún. Usa "+ Nuevo cliente".'}
                 </div>
               </div>
             ),
@@ -325,28 +395,145 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
         />
       </Card>
 
-      {/* ── Modal Crear / Editar ──────────────────────── */}
+      {/* ── Modal Crear / Editar ── */}
       <Dialog open={open} onOpenChange={v => { if (!v) setOpen(false); }}>
-        <DialogContent>
+        <DialogContent style={{ maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar cliente' : 'Nuevo cliente'}</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleSubmit(onSubmit)}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0' }}>
-              <FormField label="Nombre completo *">
-                <SdInput {...register('fullName', { required: true })} placeholder="Juan Pérez" autoFocus />
-              </FormField>
-              <FormField label="Email *">
-                <SdInput type="email" {...register('email', { required: true })} placeholder="juan@ejemplo.com" />
-              </FormField>
-              <FormField label="Teléfono">
-                <SdInput {...register('phone')} placeholder="+503 7000-0000" />
-              </FormField>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {/* ─ Datos de acceso ─ */}
+              <Text strong style={{ fontSize: 13, color: '#0d9488' }}>Datos de acceso</Text>
+              <Row gutter={[12, 10]}>
+                <Col span={24}>
+                  <FormField label="Nombre completo *">
+                    <SdInput {...register('fullName', { required: true })} placeholder="Juan Pérez" autoFocus />
+                  </FormField>
+                </Col>
+                <Col xs={24} sm={12}>
+                  <FormField label="Email *">
+                    <SdInput type="email" {...register('email', { required: true })} placeholder="juan@ejemplo.com" />
+                  </FormField>
+                </Col>
+                <Col xs={24} sm={12}>
+                  <FormField label="Teléfono">
+                    <SdInput {...register('phone')} placeholder="+503 7000-0000" />
+                  </FormField>
+                </Col>
+              </Row>
+
+              <Divider style={{ margin: '4px 0' }} />
+
+              {/* ─ Datos fiscales ─ */}
+              <Text strong style={{ fontSize: 13, color: '#0d9488' }}>Datos fiscales (DTE)</Text>
+
+              <div>
+                <FieldLabel>Tipo de persona</FieldLabel>
+                <Radio.Group
+                  options={TIPO_PERSONA_OPTIONS}
+                  value={tipoPersona}
+                  onChange={e => handleTipoPersonaChange(e.target.value)}
+                  optionType="button"
+                  buttonStyle="solid"
+                  size="small"
+                />
+              </div>
+
+              <Row gutter={[12, 10]}>
+                {tipoPersona === 'NATURAL' ? (
+                  <>
+                    <Col xs={24} sm={12}>
+                      <FieldLabel>Tipo de documento</FieldLabel>
+                      <Select
+                        style={{ width: '100%' }}
+                        placeholder="Seleccionar..."
+                        value={tipoDocumento}
+                        onChange={v => setTipoDocumento(v)}
+                        allowClear
+                        options={TIPO_DOC_NATURAL}
+                        size="small"
+                      />
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <FormField label="Número de documento">
+                        <SdInput {...register('numDocumento')} placeholder="Ej: 01234567-8" />
+                      </FormField>
+                    </Col>
+                  </>
+                ) : (
+                  <>
+                    <Col xs={24} sm={12}>
+                      <FormField label="NIT">
+                        <SdInput {...register('numDocumento')} placeholder="0000-000000-000-0" />
+                      </FormField>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <FormField label="NRC">
+                        <SdInput {...register('nrc')} placeholder="000000-0" />
+                      </FormField>
+                    </Col>
+                    <Col span={24}>
+                      <FormField label="Nombre comercial / Razón social">
+                        <SdInput {...register('nombreComercial')} placeholder="Empresa S.A. de C.V." />
+                      </FormField>
+                    </Col>
+                  </>
+                )}
+              </Row>
+
+              <Divider style={{ margin: '4px 0' }} />
+
+              {/* ─ Dirección fiscal ─ */}
+              <Text strong style={{ fontSize: 13, color: '#0d9488' }}>Dirección fiscal</Text>
+              <Row gutter={[12, 10]}>
+                <Col xs={24} sm={12}>
+                  <FieldLabel>Departamento</FieldLabel>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="Seleccionar departamento..."
+                    value={departamentoCod}
+                    onChange={v => { setDepartamentoCod(v); setMunicipioCod(undefined); }}
+                    allowClear
+                    showSearch
+                    optionFilterProp="label"
+                    size="small"
+                    options={departamentos.map(d => ({ value: d.codigo, label: `${d.codigo} - ${d.nombre}` }))}
+                  />
+                </Col>
+                <Col xs={24} sm={12}>
+                  <FieldLabel>Municipio</FieldLabel>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder={departamentoCod ? 'Seleccionar municipio...' : 'Primero selecciona departamento'}
+                    value={municipioCod}
+                    onChange={v => setMunicipioCod(v)}
+                    disabled={!departamentoCod}
+                    loading={loadingMunis}
+                    allowClear
+                    showSearch
+                    optionFilterProp="label"
+                    size="small"
+                    options={municipios.map(m => ({ value: m.codigo, label: `${m.codigo} - ${m.nombre}` }))}
+                  />
+                </Col>
+                <Col span={24}>
+                  <FormField label="Dirección / Complemento">
+                    <SdInput {...register('complemento')} placeholder="Calle, colonia, número..." />
+                  </FormField>
+                </Col>
+              </Row>
+
               {error && <p style={{ color: 'hsl(var(--status-error))', fontSize: 13, margin: 0 }}>{error}</p>}
             </div>
-            <DialogFooter>
+
+            <DialogFooter style={{ marginTop: 16 }}>
               <SdButton type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</SdButton>
-              <SdButton type="submit" disabled={saving}>{saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear cliente'}</SdButton>
+              <SdButton type="submit" disabled={saving}>
+                {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear cliente'}
+              </SdButton>
             </DialogFooter>
           </form>
         </DialogContent>

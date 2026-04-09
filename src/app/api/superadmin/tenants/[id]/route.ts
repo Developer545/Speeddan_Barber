@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSuperadminKey, unauthorizedResponse } from '@/lib/superadmin-auth';
 import { prisma } from '@/lib/prisma';
-import type { BarberPlan, BarberTenantStatus } from '@prisma/client';
+import type { BarberPlan, BarberTenantStatus, BusinessType } from '@prisma/client';
 
 const TENANT_SELECT = {
   id: true, slug: true, name: true, plan: true, status: true,
   trialEndsAt: true, paidUntil: true, suspendedAt: true,
   maxBarbers: true, email: true, phone: true, city: true, country: true,
-  logoUrl: true, createdAt: true, updatedAt: true,
+  businessType: true, logoUrl: true, createdAt: true, updatedAt: true,
   _count: { select: { users: true, barbers: true, appointments: true } },
 } as const;
 
@@ -36,11 +36,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     city?:        string;
     country?:     string;
     logoUrl?:     string;
-    plan?:        BarberPlan;
-    status?:      BarberTenantStatus;
-    maxBarbers?:  number;
-    paidUntil?:   string | null;
-    trialEndsAt?: string | null;
+    plan?:         BarberPlan;
+    status?:       BarberTenantStatus;
+    businessType?: BusinessType;
+    maxBarbers?:   number;
+    paidUntil?:    string | null;
+    trialEndsAt?:  string | null;
   };
 
   const tenant = await prisma.barberTenant.findUnique({ where: { id: Number(id), deletedAt: null } });
@@ -56,8 +57,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       ...(body.city       !== undefined && { city:       body.city }),
       ...(body.country    !== undefined && { country:    body.country }),
       ...(body.logoUrl    !== undefined && { logoUrl:    body.logoUrl }),
-      ...(body.plan       !== undefined && { plan:       body.plan }),
-      ...(body.status     !== undefined && { status:     body.status }),
+      ...(body.plan         !== undefined && { plan:         body.plan }),
+      ...(body.status       !== undefined && { status:       body.status }),
+      ...(body.businessType !== undefined && { businessType: body.businessType }),
       ...(body.maxBarbers !== undefined && { maxBarbers: body.maxBarbers }),
       ...(body.paidUntil  !== undefined && { paidUntil:  body.paidUntil ? new Date(body.paidUntil) : null }),
       ...(body.trialEndsAt !== undefined && { trialEndsAt: body.trialEndsAt ? new Date(body.trialEndsAt) : null }),

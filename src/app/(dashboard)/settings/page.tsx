@@ -1,7 +1,7 @@
 'use client';
 
 // ══════════════════════════════════════════════════════════
-// CONFIGURACIÓN — Datos y apariencia del tenant
+// CONFIGURACIÓN — Datos, horarios y catálogo MH
 // ══════════════════════════════════════════════════════════
 
 import { useState, useEffect } from 'react';
@@ -9,9 +9,12 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import {
   Card, Button, Input, Row, Col, Tag, Typography, Space, Spin, Switch, TimePicker,
+  Tabs, Table, Select, Popconfirm, Tooltip, Modal,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
   SaveOutlined, SettingOutlined, InfoCircleOutlined, ClockCircleOutlined,
+  GlobalOutlined, PlusOutlined, EditOutlined, DeleteOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
 
@@ -31,18 +34,13 @@ type Tenant = {
   country: string; logoUrl: string | null; plan: string; status: string;
   themeConfig: Record<string, string>; trialEndsAt: string | null; paidUntil: string | null;
 };
-
 type InfoForm  = { name: string; email: string; phone: string; address: string; city: string };
+type BusinessHourEntry = { dayOfWeek: number; active: boolean; startTime: string; endTime: string };
 
-type BusinessHourEntry = {
-  dayOfWeek: number;
-  active:    boolean;
-  startTime: string;
-  endTime:   string;
-};
+type Departamento = { id: number; codigo: string; nombre: string; totalMunicipios: number };
+type Municipio    = { id: number; codigo: string; nombre: string; departamentoCod: string; departamento: { nombre: string } };
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
 const DEFAULT_HOURS: BusinessHourEntry[] = [
   { dayOfWeek: 0, active: false, startTime: '08:00', endTime: '17:00' },
   { dayOfWeek: 1, active: false, startTime: '08:00', endTime: '17:00' },
@@ -53,7 +51,6 @@ const DEFAULT_HOURS: BusinessHourEntry[] = [
   { dayOfWeek: 6, active: true,  startTime: '08:00', endTime: '17:00' },
 ];
 
-// Helper label wrapper
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontSize: 12, fontWeight: 500, color: '#595959', marginBottom: 4 }}>
@@ -62,9 +59,12 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Componente ───────────────────────────────────────────
-export default function SettingsPage() {
-  const [tenant,           setTenant]           = useState<Tenant | null>(null);
+// ══════════════════════════════════════════════════════════
+// TAB 1+2: Negocio + Horarios (contenido original)
+// ══════════════════════════════════════════════════════════
+
+function TabNegocio() {
+  const [tenant,       setTenant]       = useState<Tenant | null>(null);
   const [infoLoading,  setInfoLoading]  = useState(false);
   const [infoError,    setInfoError]    = useState('');
   const [hours,        setHours]        = useState<BusinessHourEntry[]>(DEFAULT_HOURS);
@@ -100,28 +100,20 @@ export default function SettingsPage() {
         body: JSON.stringify(values),
       });
       const json = await res.json();
-      if (!res.ok) {
-        const msg = json.error?.message ?? 'Error al guardar';
-        setInfoError(msg); toast.error(msg); return;
-      }
+      if (!res.ok) { const msg = json.error?.message ?? 'Error al guardar'; setInfoError(msg); toast.error(msg); return; }
       setTenant(json.data);
       toast.success('Información actualizada correctamente');
-    } catch {
-      setInfoError('Error de red'); toast.error('Error de red');
-    } finally { setInfoLoading(false); }
+    } catch { setInfoError('Error de red'); toast.error('Error de red'); }
+    finally { setInfoLoading(false); }
   }
 
   function toggleDay(dayOfWeek: number, active: boolean) {
     setHours(prev => prev.map(h => h.dayOfWeek === dayOfWeek ? { ...h, active } : h));
   }
-
   function setTime(dayOfWeek: number, field: 'startTime' | 'endTime', value: Dayjs | null) {
     if (!value) return;
-    setHours(prev => prev.map(h =>
-      h.dayOfWeek === dayOfWeek ? { ...h, [field]: value.format('HH:mm') } : h
-    ));
+    setHours(prev => prev.map(h => h.dayOfWeek === dayOfWeek ? { ...h, [field]: value.format('HH:mm') } : h));
   }
-
   async function saveHours() {
     setHoursLoading(true);
     try {
@@ -133,58 +125,30 @@ export default function SettingsPage() {
       if (!res.ok) { toast.error(json.error?.message ?? 'Error al guardar horarios'); return; }
       setHours(json.data);
       toast.success('Horarios guardados y sincronizados con los barberos');
-    } catch {
-      toast.error('Error de red');
-    } finally { setHoursLoading(false); }
+    } catch { toast.error('Error de red'); }
+    finally { setHoursLoading(false); }
   }
 
   if (!tenant) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-        <Spin size="large" tip="Cargando configuración…" />
-      </div>
-    );
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}><Spin size="large" /></div>;
   }
 
   return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: '0 0 4px' }}>
-          <SettingOutlined style={{ marginRight: 8, color: '#0d9488' }} />
-          Configuración
-        </Title>
-        <Text type="secondary">Datos y apariencia de tu barbería</Text>
-      </div>
-
-      {/* ── Plan y estado ── */}
-      <Card
-        title={
-          <Space>
-            <InfoCircleOutlined style={{ color: '#0d9488' }} />
-            <span>Plan y estado</span>
-          </Space>
-        }
-        size="small"
-        style={{ marginBottom: 16 }}
-      >
+    <>
+      {/* Plan y estado */}
+      <Card title={<Space><InfoCircleOutlined style={{ color: '#0d9488' }} /><span>Plan y estado</span></Space>} size="small" style={{ marginBottom: 16 }}>
         <Space wrap size={24}>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Plan</Text>
-            <Tag color={PLAN_COLORS[tenant.plan] ?? 'default'} style={{ fontWeight: 600 }}>
-              {PLAN_LABELS[tenant.plan] ?? tenant.plan}
-            </Tag>
+            <Tag color={PLAN_COLORS[tenant.plan] ?? 'default'} style={{ fontWeight: 600 }}>{PLAN_LABELS[tenant.plan] ?? tenant.plan}</Tag>
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Estado</Text>
-            <Tag color={tenant.status === 'ACTIVE' ? 'success' : 'warning'}>
-              {tenant.status === 'ACTIVE' ? 'Activo' : tenant.status}
-            </Tag>
+            <Tag color={tenant.status === 'ACTIVE' ? 'success' : 'warning'}>{tenant.status === 'ACTIVE' ? 'Activo' : tenant.status}</Tag>
           </div>
           <div>
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Subdominio</Text>
-            <code style={{ fontSize: 13, background: '#f5f5f5', padding: '2px 8px', borderRadius: 4, border: '1px solid #e8e8e8' }}>
-              {tenant.slug}
-            </code>
+            <code style={{ fontSize: 13, background: '#f5f5f5', padding: '2px 8px', borderRadius: 4, border: '1px solid #e8e8e8' }}>{tenant.slug}</code>
           </div>
           {tenant.trialEndsAt && (
             <div>
@@ -195,17 +159,8 @@ export default function SettingsPage() {
         </Space>
       </Card>
 
-      {/* ── Información del negocio ── */}
-      <Card
-        title={
-          <Space>
-            <InfoCircleOutlined style={{ color: '#0d9488' }} />
-            <span>Información del negocio</span>
-          </Space>
-        }
-        size="small"
-        style={{ marginBottom: 16 }}
-      >
+      {/* Información del negocio */}
+      <Card title={<Space><InfoCircleOutlined style={{ color: '#0d9488' }} /><span>Información del negocio</span></Space>} size="small" style={{ marginBottom: 16 }}>
         <form onSubmit={handleInfo(onInfoSubmit)}>
           <Row gutter={[16, 12]}>
             <Col xs={24} md={12}>
@@ -229,9 +184,7 @@ export default function SettingsPage() {
               <Input {...regInfo('address')} placeholder="Calle Principal #123, Col. Centro" />
             </Col>
           </Row>
-          {infoError && (
-            <p style={{ color: '#ff4d4f', fontSize: 13, marginTop: 10, marginBottom: 0 }}>{infoError}</p>
-          )}
+          {infoError && <p style={{ color: '#ff4d4f', fontSize: 13, marginTop: 10, marginBottom: 0 }}>{infoError}</p>}
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="primary" htmlType="submit" loading={infoLoading} icon={<SaveOutlined />}>
               {infoLoading ? 'Guardando...' : 'Guardar cambios'}
@@ -240,85 +193,407 @@ export default function SettingsPage() {
         </form>
       </Card>
 
-      {/* ── Horarios de trabajo ── */}
+      {/* Horarios */}
       <Card
-        title={
-          <Space>
-            <ClockCircleOutlined style={{ color: '#0d9488' }} />
-            <span>Horarios de trabajo</span>
-          </Space>
-        }
+        title={<Space><ClockCircleOutlined style={{ color: '#0d9488' }} /><span>Horarios de trabajo</span></Space>}
         size="small"
-        style={{ marginBottom: 16 }}
-        extra={
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            loading={hoursLoading}
-            onClick={saveHours}
-            size="small"
-          >
-            Guardar horarios
-          </Button>
-        }
+        extra={<Button type="primary" icon={<SaveOutlined />} loading={hoursLoading} onClick={saveHours} size="small">Guardar horarios</Button>}
       >
         <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
-          Configura los días y horarios en que atiende tu barbería. Los clientes solo podrán agendar citas dentro de estos horarios.
+          Configura los días y horarios en que atiende tu barbería.
         </Text>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {hours.map(h => (
             <Row key={h.dayOfWeek} align="middle" gutter={12}>
               <Col style={{ width: 32 }}>
-                <Switch
-                  size="small"
-                  checked={h.active}
-                  onChange={val => toggleDay(h.dayOfWeek, val)}
-                  style={{ background: h.active ? '#0d9488' : undefined }}
-                />
+                <Switch size="small" checked={h.active} onChange={val => toggleDay(h.dayOfWeek, val)} style={{ background: h.active ? '#0d9488' : undefined }} />
               </Col>
               <Col style={{ width: 96 }}>
-                <Text style={{ fontSize: 13, color: h.active ? undefined : '#bfbfbf', fontWeight: h.active ? 500 : 400 }}>
-                  {DAY_NAMES[h.dayOfWeek]}
-                </Text>
+                <Text style={{ fontSize: 13, color: h.active ? undefined : '#bfbfbf', fontWeight: h.active ? 500 : 400 }}>{DAY_NAMES[h.dayOfWeek]}</Text>
               </Col>
               {h.active ? (
                 <>
                   <Col>
-                    <TimePicker
-                      size="small"
-                      format="HH:mm"
-                      minuteStep={30}
-                      value={dayjs(h.startTime, 'HH:mm')}
-                      onChange={val => setTime(h.dayOfWeek, 'startTime', val)}
-                      allowClear={false}
-                      style={{ width: 90 }}
-                    />
+                    <TimePicker size="small" format="HH:mm" minuteStep={30} value={dayjs(h.startTime, 'HH:mm')} onChange={val => setTime(h.dayOfWeek, 'startTime', val)} allowClear={false} style={{ width: 90 }} />
                   </Col>
+                  <Col><Text type="secondary" style={{ fontSize: 12 }}>a</Text></Col>
                   <Col>
-                    <Text type="secondary" style={{ fontSize: 12 }}>a</Text>
-                  </Col>
-                  <Col>
-                    <TimePicker
-                      size="small"
-                      format="HH:mm"
-                      minuteStep={30}
-                      value={dayjs(h.endTime, 'HH:mm')}
-                      onChange={val => setTime(h.dayOfWeek, 'endTime', val)}
-                      allowClear={false}
-                      style={{ width: 90 }}
-                    />
+                    <TimePicker size="small" format="HH:mm" minuteStep={30} value={dayjs(h.endTime, 'HH:mm')} onChange={val => setTime(h.dayOfWeek, 'endTime', val)} allowClear={false} style={{ width: 90 }} />
                   </Col>
                 </>
               ) : (
-                <Col>
-                  <Text type="secondary" style={{ fontSize: 12 }}>Cerrado</Text>
-                </Col>
+                <Col><Text type="secondary" style={{ fontSize: 12 }}>Cerrado</Text></Col>
               )}
             </Row>
           ))}
         </div>
       </Card>
+    </>
+  );
+}
 
+// ══════════════════════════════════════════════════════════
+// TAB 3: Catálogo MH — Departamentos y Municipios
+// ══════════════════════════════════════════════════════════
+
+function TabCatalogoMH() {
+  const [deptos,         setDeptos]         = useState<Departamento[]>([]);
+  const [municipios,     setMunicipios]     = useState<Municipio[]>([]);
+  const [activeSubTab,   setActiveSubTab]   = useState<'departamentos' | 'municipios'>('departamentos');
+  const [loadingDeptos,  setLoadingDeptos]  = useState(false);
+  const [loadingMunis,   setLoadingMunis]   = useState(false);
+  const [seeding,        setSeeding]        = useState(false);
+  const [filterDepto,    setFilterDepto]    = useState<string | undefined>(undefined);
+
+  // Modales
+  const [deptoModal,    setDeptoModal]    = useState(false);
+  const [muniModal,     setMuniModal]     = useState(false);
+  const [editDepto,     setEditDepto]     = useState<Departamento | null>(null);
+  const [editMuni,      setEditMuni]      = useState<Municipio | null>(null);
+  const [savingDepto,   setSavingDepto]   = useState(false);
+  const [savingMuni,    setSavingMuni]    = useState(false);
+
+  // Formulario departamento
+  const [dCodigo, setDCodigo] = useState('');
+  const [dNombre, setDNombre] = useState('');
+  // Formulario municipio
+  const [mCodigo,      setMCodigo]      = useState('');
+  const [mNombre,      setMNombre]      = useState('');
+  const [mDeptoCod,    setMDeptoCod]    = useState<string | undefined>(undefined);
+
+  const loadDeptos = () => {
+    setLoadingDeptos(true);
+    fetch('/api/settings/departamentos')
+      .then(r => r.json())
+      .then(json => { if (json.success) setDeptos(json.data); })
+      .finally(() => setLoadingDeptos(false));
+  };
+
+  const loadMunicipios = (deptoCod?: string) => {
+    setLoadingMunis(true);
+    const url = deptoCod ? `/api/settings/municipios?departamento=${deptoCod}` : '/api/settings/municipios';
+    fetch(url)
+      .then(r => r.json())
+      .then(json => { if (json.success) setMunicipios(json.data); })
+      .finally(() => setLoadingMunis(false));
+  };
+
+  useEffect(() => { loadDeptos(); loadMunicipios(); }, []);
+
+  // ── Seed catálogo oficial ──────────────────────────────
+  async function handleSeed() {
+    setSeeding(true);
+    try {
+      const res  = await fetch('/api/settings/municipios/seed', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error?.message ?? 'Error al cargar catálogo'); return; }
+      toast.success(`Catálogo cargado: ${json.data.departamentos} departamentos, ${json.data.municipios} municipios`);
+      loadDeptos();
+      loadMunicipios(filterDepto);
+    } catch { toast.error('Error de red'); }
+    finally { setSeeding(false); }
+  }
+
+  // ── CRUD Departamento ──────────────────────────────────
+  function openNuevoDepto() {
+    setEditDepto(null); setDCodigo(''); setDNombre(''); setDeptoModal(true);
+  }
+  function openEditarDepto(d: Departamento) {
+    setEditDepto(d); setDCodigo(d.codigo); setDNombre(d.nombre); setDeptoModal(true);
+  }
+  async function saveDepto() {
+    setSavingDepto(true);
+    try {
+      const body = { codigo: dCodigo.trim(), nombre: dNombre.trim() };
+      const url  = editDepto ? `/api/settings/departamentos/${editDepto.id}` : '/api/settings/departamentos';
+      const res  = await fetch(url, {
+        method: editDepto ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error?.message ?? 'Error al guardar'); return; }
+      toast.success(editDepto ? 'Departamento actualizado' : 'Departamento creado');
+      setDeptoModal(false);
+      loadDeptos();
+    } catch { toast.error('Error de red'); }
+    finally { setSavingDepto(false); }
+  }
+  async function deleteDepto(d: Departamento) {
+    const res = await fetch(`/api/settings/departamentos/${d.id}`, { method: 'DELETE' });
+    if (res.ok) { toast.success('Departamento eliminado'); loadDeptos(); }
+    else { const json = await res.json(); toast.error(json.error?.message ?? 'Error al eliminar'); }
+  }
+
+  // ── CRUD Municipio ──────────────────────────────────────
+  function openNuevoMuni() {
+    setEditMuni(null); setMCodigo(''); setMNombre(''); setMDeptoCod(undefined); setMuniModal(true);
+  }
+  function openEditarMuni(m: Municipio) {
+    setEditMuni(m); setMCodigo(m.codigo); setMNombre(m.nombre); setMDeptoCod(m.departamentoCod); setMuniModal(true);
+  }
+  async function saveMuni() {
+    setSavingMuni(true);
+    try {
+      const body = { codigo: mCodigo.trim(), nombre: mNombre.trim(), departamentoCod: mDeptoCod };
+      const url  = editMuni ? `/api/settings/municipios/${editMuni.id}` : '/api/settings/municipios';
+      const res  = await fetch(url, {
+        method: editMuni ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) { toast.error(json.error?.message ?? 'Error al guardar'); return; }
+      toast.success(editMuni ? 'Municipio actualizado' : 'Municipio creado');
+      setMuniModal(false);
+      loadMunicipios(filterDepto);
+    } catch { toast.error('Error de red'); }
+    finally { setSavingMuni(false); }
+  }
+  async function deleteMuni(m: Municipio) {
+    const res = await fetch(`/api/settings/municipios/${m.id}`, { method: 'DELETE' });
+    if (res.ok) { toast.success('Municipio eliminado'); loadMunicipios(filterDepto); }
+    else { const json = await res.json(); toast.error(json.error?.message ?? 'Error al eliminar'); }
+  }
+
+  // ── Columnas departamentos ─────────────────────────────
+  const colsDepto: ColumnsType<Departamento> = [
+    { title: 'Código', dataIndex: 'codigo', key: 'codigo', width: 80, align: 'center',
+      render: (v: string) => <Tag style={{ fontFamily: 'monospace', fontWeight: 600 }}>{v}</Tag> },
+    { title: 'Nombre', dataIndex: 'nombre', key: 'nombre' },
+    { title: 'Municipios', dataIndex: 'totalMunicipios', key: 'totalMunicipios', width: 100, align: 'center',
+      render: (v: number) => <Tag color="blue">{v}</Tag> },
+    {
+      title: 'Acciones', key: 'actions', width: 90, fixed: 'right',
+      render: (_, r) => (
+        <Space size={4}>
+          <Tooltip title="Editar">
+            <Button size="small" type="primary" ghost icon={<EditOutlined />} onClick={() => openEditarDepto(r)} />
+          </Tooltip>
+          <Popconfirm
+            title="¿Eliminar departamento?"
+            description="Solo se puede eliminar si no tiene municipios."
+            okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+            onConfirm={() => deleteDepto(r)}
+          >
+            <Tooltip title="Eliminar">
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  // ── Columnas municipios ────────────────────────────────
+  const colsMuni: ColumnsType<Municipio> = [
+    { title: 'Código', dataIndex: 'codigo', key: 'codigo', width: 80, align: 'center',
+      render: (v: string) => <Tag style={{ fontFamily: 'monospace', fontWeight: 600 }}>{v}</Tag> },
+    { title: 'Nombre', dataIndex: 'nombre', key: 'nombre' },
+    { title: 'Departamento', key: 'departamento', width: 160,
+      render: (_, r) => <Text style={{ fontSize: 12 }}>{r.departamentoCod} — {r.departamento.nombre}</Text> },
+    {
+      title: 'Acciones', key: 'actions', width: 90, fixed: 'right',
+      render: (_, r) => (
+        <Space size={4}>
+          <Tooltip title="Editar">
+            <Button size="small" type="primary" ghost icon={<EditOutlined />} onClick={() => openEditarMuni(r)} />
+          </Tooltip>
+          <Popconfirm
+            title="¿Eliminar municipio?"
+            okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}
+            onConfirm={() => deleteMuni(r)}
+          >
+            <Tooltip title="Eliminar">
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Card
+        title={<Space><GlobalOutlined style={{ color: '#0d9488' }} /><span>Catálogo MH — Territorios El Salvador</span></Space>}
+        size="small"
+        extra={
+          <Popconfirm
+            title="¿Cargar catálogo oficial?"
+            description="Se cargarán los 14 departamentos y ~262 municipios del MH. Es idempotente."
+            okText="Cargar" cancelText="Cancelar"
+            onConfirm={handleSeed}
+          >
+            <Button type="default" icon={<SyncOutlined spin={seeding} />} loading={seeding} size="small">
+              Cargar catálogo oficial MH
+            </Button>
+          </Popconfirm>
+        }
+      >
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
+          Catálogos CAT-012 (departamentos) y CAT-013 (municipios) requeridos para facturación DTE.
+          Usa el botón <strong>"Cargar catálogo oficial MH"</strong> para poblar todos los registros de una sola vez.
+        </Text>
+
+        <Tabs
+          size="small"
+          activeKey={activeSubTab}
+          onChange={k => setActiveSubTab(k as 'departamentos' | 'municipios')}
+          items={[
+            {
+              key: 'departamentos',
+              label: `Departamentos (${deptos.length})`,
+              children: (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                    <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openNuevoDepto}>
+                      Agregar departamento
+                    </Button>
+                  </div>
+                  <Table
+                    dataSource={deptos}
+                    columns={colsDepto}
+                    rowKey="id"
+                    size="small"
+                    loading={loadingDeptos}
+                    pagination={{ pageSize: 20, showSizeChanger: false, showTotal: t => `${t} departamentos` }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'municipios',
+              label: `Municipios (${municipios.length})`,
+              children: (
+                <>
+                  <Row gutter={[8, 8]} style={{ marginBottom: 12 }}>
+                    <Col xs={24} sm={10}>
+                      <Select
+                        style={{ width: '100%' }}
+                        placeholder="Filtrar por departamento..."
+                        value={filterDepto}
+                        onChange={v => { setFilterDepto(v); loadMunicipios(v); }}
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        size="small"
+                        options={deptos.map(d => ({ value: d.codigo, label: `${d.codigo} - ${d.nombre}` }))}
+                      />
+                    </Col>
+                    <Col style={{ marginLeft: 'auto' }}>
+                      <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openNuevoMuni}>
+                        Agregar municipio
+                      </Button>
+                    </Col>
+                  </Row>
+                  <Table
+                    dataSource={municipios}
+                    columns={colsMuni}
+                    rowKey="id"
+                    size="small"
+                    loading={loadingMunis}
+                    pagination={{ pageSize: 20, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'], showTotal: t => `${t} municipios` }}
+                    scroll={{ x: 550 }}
+                  />
+                </>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      {/* ── Modal Departamento ── */}
+      <Modal
+        title={editDepto ? 'Editar departamento' : 'Nuevo departamento'}
+        open={deptoModal}
+        onCancel={() => setDeptoModal(false)}
+        onOk={saveDepto}
+        okText={savingDepto ? 'Guardando...' : 'Guardar'}
+        confirmLoading={savingDepto}
+        width={360}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8 }}>
+          <div>
+            <FieldLabel>Código (CAT-012) *</FieldLabel>
+            <Input value={dCodigo} onChange={e => setDCodigo(e.target.value)} placeholder="Ej: 01" maxLength={2} disabled={!!editDepto} />
+          </div>
+          <div>
+            <FieldLabel>Nombre *</FieldLabel>
+            <Input value={dNombre} onChange={e => setDNombre(e.target.value)} placeholder="Ej: San Salvador" />
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Modal Municipio ── */}
+      <Modal
+        title={editMuni ? 'Editar municipio' : 'Nuevo municipio'}
+        open={muniModal}
+        onCancel={() => setMuniModal(false)}
+        onOk={saveMuni}
+        okText={savingMuni ? 'Guardando...' : 'Guardar'}
+        confirmLoading={savingMuni}
+        width={400}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8 }}>
+          <div>
+            <FieldLabel>Departamento *</FieldLabel>
+            <Select
+              style={{ width: '100%' }}
+              placeholder="Seleccionar..."
+              value={mDeptoCod}
+              onChange={v => setMDeptoCod(v)}
+              showSearch
+              optionFilterProp="label"
+              disabled={!!editMuni}
+              options={deptos.map(d => ({ value: d.codigo, label: `${d.codigo} - ${d.nombre}` }))}
+            />
+          </div>
+          <div>
+            <FieldLabel>Código (CAT-013) *</FieldLabel>
+            <Input value={mCodigo} onChange={e => setMCodigo(e.target.value)} placeholder="Ej: 23" maxLength={2} disabled={!!editMuni} />
+          </div>
+          <div>
+            <FieldLabel>Nombre *</FieldLabel>
+            <Input value={mNombre} onChange={e => setMNombre(e.target.value)} placeholder="Ej: San Salvador" />
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+// PÁGINA PRINCIPAL
+// ══════════════════════════════════════════════════════════
+
+export default function SettingsPage() {
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={4} style={{ margin: '0 0 4px' }}>
+          <SettingOutlined style={{ marginRight: 8, color: '#0d9488' }} />
+          Configuración
+        </Title>
+        <Text type="secondary">Datos, horarios y catálogos de tu barbería</Text>
+      </div>
+
+      <Tabs
+        defaultActiveKey="negocio"
+        type="card"
+        items={[
+          {
+            key:      'negocio',
+            label:    <Space><InfoCircleOutlined />Negocio y Horarios</Space>,
+            children: <TabNegocio />,
+          },
+          {
+            key:      'catalogo',
+            label:    <Space><GlobalOutlined />Catálogo MH</Space>,
+            children: <TabCatalogoMH />,
+          },
+        ]}
+      />
     </div>
   );
 }

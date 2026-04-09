@@ -94,8 +94,13 @@ export interface CreateVentaInput {
   turnoId: number
   tipoDte: '01' | '03'
   clienteNombre?: string
+  clienteTipoDocumento?: string
   clienteDocumento?: string
   clienteNrc?: string
+  clienteNombreComercial?: string
+  clienteDepartamentoCod?: string
+  clienteMunicipioCod?: string
+  clienteComplemento?: string
   clienteId?: number
   appointmentId?: number
   items: Array<{
@@ -132,6 +137,28 @@ export async function createVenta(tenantId: number, input: CreateVentaInput) {
 
   const turnoActivo = await repo.getTurnoActivo(tenantId)
   if (!turnoActivo || turnoActivo.id !== input.turnoId) throw new Error('No hay turno activo o el turnoId no coincide')
+
+  // Si se pasa clienteId, cargar campos fiscales del cliente registrado
+  if (input.clienteId) {
+    const clienteDB = await prisma.barberUser.findFirst({
+      where: { id: input.clienteId, tenantId, role: 'CLIENT' },
+      select: {
+        fullName: true, tipoDocumento: true, numDocumento: true,
+        nrc: true, nombreComercial: true,
+        departamentoCod: true, municipioCod: true, complemento: true,
+      },
+    })
+    if (clienteDB) {
+      if (!input.clienteNombre)          input.clienteNombre          = clienteDB.fullName
+      if (!input.clienteTipoDocumento)   input.clienteTipoDocumento   = clienteDB.tipoDocumento ?? undefined
+      if (!input.clienteDocumento)       input.clienteDocumento       = clienteDB.numDocumento ?? undefined
+      if (!input.clienteNrc)             input.clienteNrc             = clienteDB.nrc ?? undefined
+      if (!input.clienteNombreComercial) input.clienteNombreComercial = clienteDB.nombreComercial ?? undefined
+      if (!input.clienteDepartamentoCod) input.clienteDepartamentoCod = clienteDB.departamentoCod ?? undefined
+      if (!input.clienteMunicipioCod)    input.clienteMunicipioCod    = clienteDB.municipioCod ?? undefined
+      if (!input.clienteComplemento)     input.clienteComplemento     = clienteDB.complemento ?? undefined
+    }
+  }
 
   const config = await getTenantConfig(tenantId)
 
@@ -204,10 +231,19 @@ export async function createVenta(tenantId: number, input: CreateVentaInput) {
       direccion: config.direccion,
     },
     receptor: {
-      nombre: input.clienteNombre || 'Consumidor Final',
-      tipoDocumento: input.clienteDocumento ? (input.tipoDte === '03' ? '36' : '13') : null,
-      numDocumento: input.clienteDocumento || null,
-      nrc: input.clienteNrc || null,
+      nombre:          input.clienteNombre || 'Consumidor Final',
+      tipoDocumento:   input.clienteTipoDocumento
+                         ?? (input.clienteDocumento ? (input.tipoDte === '03' ? '36' : '13') : null),
+      numDocumento:    input.clienteDocumento || null,
+      nrc:             input.clienteNrc || null,
+      nombreComercial: input.clienteNombreComercial || null,
+      direccion: (input.clienteDepartamentoCod && input.clienteMunicipioCod)
+        ? {
+            departamento: input.clienteDepartamentoCod,
+            municipio:    input.clienteMunicipioCod,
+            complemento:  input.clienteComplemento || '',
+          }
+        : null,
     },
     items: dteItems,
     pagos: dtePagos,
