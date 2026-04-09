@@ -1,5 +1,9 @@
 import { prisma } from '@/lib/prisma';
-import LoginClient from './LoginClient';
+import dynamic from 'next/dynamic';
+
+// ssr: false elimina cualquier hydration mismatch entre servidor y cliente.
+// El tema (localStorage) y otros valores del cliente causan divergencia en React 19.
+const LoginClient = dynamic(() => import('./LoginClient'), { ssr: false, loading: () => null });
 
 const DEFAULT_BRANDING = {
   brandName: 'Speeddan',
