@@ -82,12 +82,24 @@ function getStoredSector(): Sector {
 
 const featureIcons = [CalendarIcon, ChartIcon, UsersIcon];
 
-export default function LoginClient({ initialBranding }: { initialBranding: BrandingConfig | null }) {
+export default function LoginClient({
+  initialBranding,
+  initialTenant,
+  initialStep,
+}: {
+  initialBranding: BrandingConfig | null;
+  initialTenant?: TenantInfo | null;
+  initialStep?: Step;
+}) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('empresa');
-  const [sector, setSector] = useState<Sector>(getStoredSector);
-  const [slug, setSlug] = useState('');
-  const [tenant, setTenant] = useState<TenantInfo | null>(null);
+  const [step, setStep] = useState<Step>(initialStep ?? 'empresa');
+  const [sector, setSector] = useState<Sector>(
+    initialTenant
+      ? (initialTenant.businessType === 'SALON' ? 'salon' : 'barberia')
+      : getStoredSector()
+  );
+  const [slug, setSlug] = useState(initialTenant?.slug ?? '');
+  const [tenant, setTenant] = useState<TenantInfo | null>(initialTenant ?? null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
