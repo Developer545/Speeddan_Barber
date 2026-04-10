@@ -10,6 +10,11 @@ const TENANT_SELECT = {
   maxBarbers: true, email: true, phone: true, city: true, country: true,
   businessType: true, logoUrl: true, createdAt: true, updatedAt: true,
   _count: { select: { users: true, barbers: true, appointments: true } },
+  users: {
+    where: { role: 'OWNER' as const },
+    select: { id: true, fullName: true, email: true },
+    take: 1,
+  },
 } as const;
 
 export async function GET(req: NextRequest) {
