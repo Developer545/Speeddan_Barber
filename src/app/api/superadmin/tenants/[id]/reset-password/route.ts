@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
 
   const owner = await prisma.barberUser.findFirst({
-    where: { tenantId: Number(id), role: 'OWNER', deletedAt: null },
+    where: { tenantId: Number(id), role: 'OWNER' },
     select: { id: true, email: true, fullName: true },
   });
 
