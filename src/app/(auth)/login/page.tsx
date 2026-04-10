@@ -1,9 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import dynamic from 'next/dynamic';
-
-// ssr: false elimina cualquier hydration mismatch entre servidor y cliente.
-// El tema (localStorage) y otros valores del cliente causan divergencia en React 19.
-const LoginClient = dynamic(() => import('./LoginClient'), { ssr: false, loading: () => null });
+import LoginWrapper from './LoginWrapper';
 
 const DEFAULT_BRANDING = {
   brandName: 'Speeddan',
@@ -37,5 +33,5 @@ async function getBranding() {
 
 export default async function LoginPage() {
   const branding = await getBranding();
-  return <LoginClient initialBranding={branding} />;
+  return <LoginWrapper initialBranding={branding} />;
 }
