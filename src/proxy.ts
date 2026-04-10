@@ -13,6 +13,10 @@ function getSecret() {
 
 // Rutas que NO requieren autenticación
 const PUBLIC_PREFIXES = [
+  '/_next/static',
+  '/_next/image',
+  '/_next/webpack-hmr',
+  '/favicon.ico',
   '/login',
   '/api/auth',
   '/api/tenant/verify',
