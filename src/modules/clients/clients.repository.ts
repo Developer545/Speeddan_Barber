@@ -18,6 +18,9 @@ export type ClientCreateInput = {
   departamentoCod?: string;
   municipioCod?:    string;
   complemento?:     string;
+  // Descuento por convenio
+  descuentoTipo?:   string;
+  descuentoValor?:  number;
 };
 
 export type ClientUpdateInput = Partial<Omit<ClientCreateInput, 'password'>>;
@@ -37,6 +40,9 @@ const CLIENT_SELECT = {
   departamentoCod: true,
   municipioCod:    true,
   complemento:     true,
+  // Descuento por convenio
+  descuentoTipo:   true,
+  descuentoValor:  true,
 } as const;
 
 export async function findAllClients(tenantId: number) {
@@ -116,6 +122,8 @@ export async function createClient(tenantId: number, data: ClientCreateInput) {
       departamentoCod: data.departamentoCod,
       municipioCod:    data.municipioCod,
       complemento:     data.complemento,
+      descuentoTipo:   data.descuentoTipo,
+      descuentoValor:  data.descuentoValor,
     },
     select: CLIENT_SELECT,
   });
@@ -135,8 +143,26 @@ export async function updateClient(id: number, tenantId: number, data: ClientUpd
       ...(data.departamentoCod !== undefined && { departamentoCod: data.departamentoCod || null }),
       ...(data.municipioCod    !== undefined && { municipioCod:    data.municipioCod || null }),
       ...(data.complemento     !== undefined && { complemento:     data.complemento || null }),
+      ...(data.descuentoTipo   !== undefined && { descuentoTipo:   data.descuentoTipo   || null }),
+      ...(data.descuentoValor  !== undefined && { descuentoValor:  data.descuentoValor  ?? null }),
     },
     select: CLIENT_SELECT,
+  });
+}
+
+export async function findClientsWithDescuento(tenantId: number) {
+  return prisma.barberUser.findMany({
+    where:   { tenantId, role: 'CLIENT', active: true, NOT: { descuentoTipo: null } },
+    select: {
+      id:              true,
+      fullName:        true,
+      tipoDocumento:   true,
+      numDocumento:    true,
+      nombreComercial: true,
+      descuentoTipo:   true,
+      descuentoValor:  true,
+    },
+    orderBy: { fullName: 'asc' },
   });
 }
 

@@ -9,13 +9,13 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import {
   Table, Card, Input, Button, Space, Row, Col,
-  Statistic, Tag, Tooltip, Popconfirm, Typography, Select, Divider, Radio,
+  Statistic, Tag, Tooltip, Popconfirm, Typography, Select, Divider, Radio, InputNumber,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   SearchOutlined, PlusOutlined, ReloadOutlined,
   TeamOutlined, EditOutlined, DeleteOutlined,
-  PhoneOutlined, CheckCircleOutlined, MailOutlined, IdcardOutlined,
+  PhoneOutlined, CheckCircleOutlined, MailOutlined, IdcardOutlined, PercentageOutlined,
 } from '@ant-design/icons';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -33,9 +33,10 @@ type Client = {
   tipoDocumento: string | null; numDocumento: string | null; nrc: string | null;
   nombreComercial: string | null; departamentoCod: string | null;
   municipioCod: string | null; complemento: string | null;
+  descuentoTipo: string | null; descuentoValor: number | null;
 };
 
-type FormValues = { fullName: string; email: string; phone: string; numDocumento: string; nrc: string; nombreComercial: string; complemento: string };
+type FormValues = { fullName: string; email: string; phone: string; numDocumento: string; nrc: string; nombreComercial: string; complemento: string; descuentoValor: string };
 
 type Departamento = { id: number; codigo: string; nombre: string; totalMunicipios: number };
 type Municipio    = { id: number; codigo: string; nombre: string; departamentoCod: string; departamento: { nombre: string } };
@@ -80,6 +81,8 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
   const [tipoDocumento,  setTipoDocumento]  = useState<string | undefined>(undefined);
   const [departamentoCod, setDepartamentoCod] = useState<string | undefined>(undefined);
   const [municipioCod,   setMunicipioCod]   = useState<string | undefined>(undefined);
+  // Descuento
+  const [descuentoTipo,  setDescuentoTipo]  = useState<'PORCENTAJE' | 'MONTO' | undefined>(undefined);
 
   // Catálogos MH
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
@@ -116,11 +119,12 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
   // ── Abrir modal crear ──────────────────────────────────
   const handleNuevo = () => {
     setEditing(null);
-    reset({ fullName: '', email: '', phone: '', numDocumento: '', nrc: '', nombreComercial: '', complemento: '' });
+    reset({ fullName: '', email: '', phone: '', numDocumento: '', nrc: '', nombreComercial: '', complemento: '', descuentoValor: '' });
     setTipoPersona('NATURAL');
     setTipoDocumento(undefined);
     setDepartamentoCod(undefined);
     setMunicipioCod(undefined);
+    setDescuentoTipo(undefined);
     setError('');
     setOpen(true);
   };
@@ -136,6 +140,7 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
       nrc:             c.nrc ?? '',
       nombreComercial: c.nombreComercial ?? '',
       complemento:     c.complemento ?? '',
+      descuentoValor:  c.descuentoValor != null ? String(c.descuentoValor) : '',
     });
     const esJuridica = c.tipoDocumento === '36';
     setTipoPersona(esJuridica ? 'JURIDICA' : 'NATURAL');
@@ -148,6 +153,7 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
         .then(json => { if (json.success) setMunicipios(json.data); });
     }
     setMunicipioCod(c.municipioCod ?? undefined);
+    setDescuentoTipo((c.descuentoTipo as 'PORCENTAJE' | 'MONTO' | null) ?? undefined);
     setError('');
     setOpen(true);
   };
@@ -173,6 +179,8 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
         departamentoCod: departamentoCod || undefined,
         municipioCod:    municipioCod || undefined,
         complemento:     values.complemento.trim() || undefined,
+        descuentoTipo:   descuentoTipo || undefined,
+        descuentoValor:  descuentoTipo && values.descuentoValor ? parseFloat(values.descuentoValor) : undefined,
       };
       const url = editing ? `/api/clients/${editing.id}` : '/api/clients';
       const res = await fetch(url, {
@@ -262,6 +270,17 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
           </div>
         </Space>
       ) : <Text type="secondary">—</Text>,
+    },
+    {
+      title:  'Descuento',
+      key:    'descuento',
+      width:  110,
+      render: (_, r) => {
+        if (!r.descuentoTipo || r.descuentoValor == null) return <Text type="secondary">—</Text>;
+        return r.descuentoTipo === 'PORCENTAJE'
+          ? <Tag color="orange" icon={<PercentageOutlined />}>{r.descuentoValor}%</Tag>
+          : <Tag color="gold">${r.descuentoValor.toFixed(2)}</Tag>;
+      },
     },
     {
       title:  'Citas',
@@ -524,6 +543,42 @@ export default function ClientsClient({ initialClients }: { initialClients: Clie
                     <SdInput {...register('complemento')} placeholder="Calle, colonia, número..." />
                   </FormField>
                 </Col>
+              </Row>
+
+              <Divider style={{ margin: '4px 0' }} />
+
+              {/* ─ Descuento ─ */}
+              <Text strong style={{ fontSize: 13, color: '#0d9488' }}>Descuento por convenio</Text>
+              <Row gutter={[12, 10]}>
+                <Col xs={24} sm={12}>
+                  <FieldLabel>Tipo de descuento</FieldLabel>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="Sin descuento"
+                    value={descuentoTipo}
+                    onChange={v => { setDescuentoTipo(v as 'PORCENTAJE' | 'MONTO' | undefined); }}
+                    allowClear
+                    size="small"
+                    options={[
+                      { label: '% Porcentaje', value: 'PORCENTAJE' },
+                      { label: '$ Monto fijo', value: 'MONTO' },
+                    ]}
+                  />
+                </Col>
+                {descuentoTipo && (
+                  <Col xs={24} sm={12}>
+                    <FormField label={descuentoTipo === 'PORCENTAJE' ? 'Porcentaje (%)' : 'Monto fijo ($)'}>
+                      <SdInput
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        max={descuentoTipo === 'PORCENTAJE' ? '100' : undefined}
+                        {...register('descuentoValor')}
+                        placeholder={descuentoTipo === 'PORCENTAJE' ? 'Ej: 10' : 'Ej: 5.00'}
+                      />
+                    </FormField>
+                  </Col>
+                )}
               </Row>
 
               {error && <p style={{ color: 'hsl(var(--status-error))', fontSize: 13, margin: 0 }}>{error}</p>}

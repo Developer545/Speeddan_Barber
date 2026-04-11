@@ -155,6 +155,9 @@ model BarberUser {
   departamentoCod String?  // CAT-012
   municipioCod    String?  // CAT-013
   complemento     String?  // dirección adicional
+  // ── Descuento por convenio/cliente ──
+  descuentoTipo   String?  // "PORCENTAJE" | "MONTO"
+  descuentoValor  Float?   // valor numérico (ej: 10 para 10% o $10.00)
   avatarUrl       String?
   role      BarberUserRole @default(CLIENT)
   active    Boolean        @default(true)

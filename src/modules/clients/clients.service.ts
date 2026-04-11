@@ -11,6 +11,7 @@ import {
   updateClient,
   toggleClientActive,
   deleteClient,
+  findClientsWithDescuento,
   type ClientCreateInput,
   type ClientUpdateInput,
 } from './clients.repository';
@@ -20,6 +21,12 @@ import { prisma } from '@/lib/prisma';
 
 export async function listClients(tenantId: number) {
   return findAllClients(tenantId);
+}
+
+// ── List with descuento (para POS) ───────────────────────
+
+export async function listClientsWithDescuento(tenantId: number) {
+  return findClientsWithDescuento(tenantId);
 }
 
 // ── Detail ────────────────────────────────────────────────
@@ -51,6 +58,18 @@ export async function createClientUser(tenantId: number, raw: unknown) {
     throw new ValidationError('Si especifica tipo de documento, debe ingresar el número de documento');
   }
 
+  // Validar descuento
+  const descuentoTipo  = data.descuentoTipo  ? String(data.descuentoTipo).trim()  : undefined;
+  const descuentoValor = data.descuentoValor != null ? Number(data.descuentoValor) : undefined;
+  if (descuentoTipo) {
+    if (!['PORCENTAJE', 'MONTO'].includes(descuentoTipo))
+      throw new ValidationError('Tipo de descuento inválido');
+    if (!descuentoValor || descuentoValor <= 0)
+      throw new ValidationError('El valor del descuento debe ser mayor a 0');
+    if (descuentoTipo === 'PORCENTAJE' && descuentoValor > 100)
+      throw new ValidationError('El porcentaje no puede superar 100');
+  }
+
   const input: ClientCreateInput = {
     fullName:        String(data.fullName).trim(),
     email:           String(data.email).trim().toLowerCase(),
@@ -63,6 +82,8 @@ export async function createClientUser(tenantId: number, raw: unknown) {
     departamentoCod: data.departamentoCod ? String(data.departamentoCod).trim() : undefined,
     municipioCod:    data.municipioCod    ? String(data.municipioCod).trim()    : undefined,
     complemento:     data.complemento     ? String(data.complemento).trim()     : undefined,
+    descuentoTipo,
+    descuentoValor,
   };
 
   // Email único dentro del tenant
@@ -94,6 +115,20 @@ export async function updateClientUser(tenantId: number, id: number, raw: unknow
     if (conflict) throw new ConflictError('Ese email ya está en uso por otro usuario');
   }
 
+  // Validar descuento si se está cambiando
+  if (data.descuentoTipo !== undefined) {
+    const dTipo  = data.descuentoTipo  ? String(data.descuentoTipo).trim()  : undefined;
+    const dValor = data.descuentoValor != null ? Number(data.descuentoValor) : undefined;
+    if (dTipo) {
+      if (!['PORCENTAJE', 'MONTO'].includes(dTipo))
+        throw new ValidationError('Tipo de descuento inválido');
+      if (!dValor || dValor <= 0)
+        throw new ValidationError('El valor del descuento debe ser mayor a 0');
+      if (dTipo === 'PORCENTAJE' && dValor > 100)
+        throw new ValidationError('El porcentaje no puede superar 100');
+    }
+  }
+
   const input: ClientUpdateInput = {
     ...(data.fullName        ? { fullName:        String(data.fullName).trim() } : {}),
     ...(data.email           ? { email:           String(data.email).trim().toLowerCase() } : {}),
@@ -105,6 +140,8 @@ export async function updateClientUser(tenantId: number, id: number, raw: unknow
     ...(data.departamentoCod !== undefined ? { departamentoCod: data.departamentoCod ? String(data.departamentoCod).trim() : undefined } : {}),
     ...(data.municipioCod    !== undefined ? { municipioCod:    data.municipioCod    ? String(data.municipioCod).trim()    : undefined } : {}),
     ...(data.complemento     !== undefined ? { complemento:     data.complemento     ? String(data.complemento).trim()     : undefined } : {}),
+    ...(data.descuentoTipo   !== undefined ? { descuentoTipo:   data.descuentoTipo   ? String(data.descuentoTipo).trim()   : undefined } : {}),
+    ...(data.descuentoValor  !== undefined ? { descuentoValor:  data.descuentoValor  != null ? Number(data.descuentoValor) : undefined } : {}),
   };
 
   return updateClient(id, tenantId, input);

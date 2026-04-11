@@ -7,14 +7,17 @@ import { NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { ok, created, apiError } from '@/lib/response';
 import { UnauthorizedError, ForbiddenError } from '@/lib/errors';
-import { listClients, createClientUser } from '@/modules/clients/clients.service';
+import { listClients, createClientUser, listClientsWithDescuento } from '@/modules/clients/clients.service';
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) throw new UnauthorizedError();
 
-    const clients = await listClients(user.tenantId);
+    const conDescuento = req.nextUrl.searchParams.get('conDescuento') === 'true';
+    const clients = conDescuento
+      ? await listClientsWithDescuento(user.tenantId)
+      : await listClients(user.tenantId);
     return ok(clients);
   } catch (err) {
     return apiError(err);

@@ -68,6 +68,15 @@ interface VentaReciente {
   pagos: { metodo: string; monto: number }[]
   detalles: { barberoNombre: string; descripcion: string; subtotal: number }[]
 }
+interface ClienteConDescuento {
+  id: number
+  fullName: string
+  tipoDocumento: string | null
+  numDocumento: string | null
+  nombreComercial: string | null
+  descuentoTipo: 'PORCENTAJE' | 'MONTO'
+  descuentoValor: number
+}
 
 const METODOS = [
   { key: 'CASH', label: '💵 Efectivo', color: 'green' },
@@ -143,6 +152,14 @@ export default function PosClient({
     estado: 'ACTIVA' | 'PENDIENTE_CANJE'; dolarsPorPunto?: number
   }[]>([])
 
+  // Descuento por cliente/empresa
+  const [descuentoActivo, setDescuentoActivo] = useState<{
+    clienteId: number; nombre: string; tipo: 'PORCENTAJE' | 'MONTO'; valor: number
+  } | null>(null)
+  const [clientesDescuento,    setClientesDescuento]    = useState<ClienteConDescuento[]>([])
+  const [busquedaDescuento,    setBusquedaDescuento]    = useState('')
+  const [loadingClienteDesc,   setLoadingClienteDesc]   = useState(false)
+
   // Mini-modal para productos fraccionables
   const [modalFraccion, setModalFraccion] = useState<{
     producto: Producto
@@ -169,6 +186,45 @@ export default function PosClient({
     cargarTurno()
     cargarVentasRecientes()
   }, [cargarTurno, cargarVentasRecientes])
+
+  // ── Clientes con descuento ──────────────────────────────────────────────────
+
+  const cargarClientesDescuento = useCallback(async () => {
+    if (clientesDescuento.length > 0) return
+    setLoadingClienteDesc(true)
+    try {
+      const res = await fetch('/api/clients?conDescuento=true')
+      const data = await res.json()
+      if (data.success) setClientesDescuento(data.data)
+    } finally {
+      setLoadingClienteDesc(false)
+    }
+  }, [clientesDescuento.length])
+
+  const calcDescuentoLinea = useCallback((precio: number, cantidad: number, desc: { tipo: 'PORCENTAJE' | 'MONTO'; valor: number }, totalSinDesc: number): number => {
+    if (desc.tipo === 'PORCENTAJE') return parseFloat((precio * cantidad * desc.valor / 100).toFixed(2))
+    // MONTO: distribuir proporcionalmente al peso de la línea en el total
+    if (totalSinDesc <= 0) return 0
+    const peso = (precio * cantidad) / totalSinDesc
+    return parseFloat((desc.valor * peso).toFixed(2))
+  }, [])
+
+  const seleccionarClienteDescuento = useCallback((cliente: ClienteConDescuento) => {
+    const desc = { clienteId: cliente.id, nombre: cliente.nombreComercial || cliente.fullName, tipo: cliente.descuentoTipo, valor: cliente.descuentoValor }
+    setDescuentoActivo(desc)
+    setBusquedaDescuento(desc.nombre)
+    // Aplicar a líneas existentes
+    setLineas(prev => {
+      const totalSinDesc = prev.reduce((s, l) => s + l.precioUnitario * l.cantidad, 0)
+      return prev.map(l => ({ ...l, descuento: calcDescuentoLinea(l.precioUnitario, l.cantidad, desc, totalSinDesc) }))
+    })
+  }, [calcDescuentoLinea])
+
+  const limpiarDescuentoCliente = useCallback(() => {
+    setDescuentoActivo(null)
+    setBusquedaDescuento('')
+    setLineas(prev => prev.map(l => ({ ...l, descuento: 0 })))
+  }, [])
 
   // ── Pre-carga desde cita (appointmentId en URL) ─────────────────────────────
   useEffect(() => {
@@ -209,6 +265,13 @@ export default function PosClient({
 
   // ── Lineas de venta ─────────────────────────────────────────────────────────
 
+  /** Redistribuye el descuento activo sobre el array de líneas dado */
+  const aplicarDescALineas = useCallback((ls: LineaVenta[]): LineaVenta[] => {
+    if (!descuentoActivo) return ls
+    const total = ls.reduce((s, l) => s + l.precioUnitario * l.cantidad, 0)
+    return ls.map(l => ({ ...l, descuento: calcDescuentoLinea(l.precioUnitario, l.cantidad, descuentoActivo, total) }))
+  }, [descuentoActivo, calcDescuentoLinea])
+
   const addLinea = () => {
     setLineas(prev => [...prev, {
       key: Date.now().toString(),
@@ -220,61 +283,78 @@ export default function PosClient({
   }
 
   const updateLinea = (key: string, field: keyof LineaVenta, value: unknown) => {
-    setLineas(prev => prev.map(l => {
-      if (l.key !== key) return l
-      const updated = { ...l, [field]: value }
-      if (field === 'servicioId') {
-        const svc = serviciosProp.find(s => s.id === value)
-        if (svc) {
-          updated.descripcion = svc.name
-          updated.precioUnitario = svc.price
-          updated.productoId = null
-          updated.esProducto = false
+    setLineas(prev => {
+      const updated = prev.map(l => {
+        if (l.key !== key) return l
+        const upd = { ...l, [field]: value }
+        if (field === 'servicioId') {
+          const svc = serviciosProp.find(s => s.id === value)
+          if (svc) {
+            upd.descripcion = svc.name
+            upd.precioUnitario = svc.price
+            upd.productoId = null
+            upd.esProducto = false
+          }
         }
-      }
-      if (field === 'productoId') {
-        const p = productosProp.find(p => p.id === value)
-        if (p) {
-          updated.descripcion = p.nombre
-          updated.precioUnitario = p.precio
-          updated.servicioId = null
-          updated.esProducto = true
+        if (field === 'productoId') {
+          const p = productosProp.find(p => p.id === value)
+          if (p) {
+            upd.descripcion = p.nombre
+            upd.precioUnitario = p.precio
+            upd.servicioId = null
+            upd.esProducto = true
+          }
         }
-      }
-      return updated
-    }))
+        return upd
+      })
+      return aplicarDescALineas(updated)
+    })
   }
 
-  const removeLinea = (key: string) => setLineas(prev => prev.filter(l => l.key !== key))
+  const removeLinea = (key: string) => {
+    setLineas(prev => {
+      const filtered = prev.filter(l => l.key !== key)
+      return aplicarDescALineas(filtered)
+    })
+  }
 
   const selectServicioRapido = (svc: Servicio) => {
     if (barberoActivo) {
-      setLineas(prev => [...prev, {
-        key: Date.now().toString(),
-        barberoId: barberoActivo.id,
-        barberoNombre: barberoActivo.nombre,
-        servicioId: svc.id, productoId: null, esProducto: false,
-        descripcion: svc.name,
-        precioUnitario: svc.price,
-        cantidad: 1, descuento: 0, esGravado: false,
-      }])
+      setLineas(prev => {
+        const nueva: LineaVenta = {
+          key: Date.now().toString(),
+          barberoId: barberoActivo.id,
+          barberoNombre: barberoActivo.nombre,
+          servicioId: svc.id, productoId: null, esProducto: false,
+          descripcion: svc.name,
+          precioUnitario: svc.price,
+          cantidad: 1, descuento: 0, esGravado: false,
+        }
+        return aplicarDescALineas([...prev, nueva])
+      })
       return
     }
     const lineaSinServicio = lineas.find(l => !l.servicioId && !l.productoId)
     if (lineaSinServicio) {
-      setLineas(prev => prev.map(l =>
-        l.key === lineaSinServicio.key
-          ? { ...l, servicioId: svc.id, productoId: null, esProducto: false, descripcion: svc.name, precioUnitario: svc.price }
-          : l
-      ))
+      setLineas(prev => {
+        const updated = prev.map(l =>
+          l.key === lineaSinServicio.key
+            ? { ...l, servicioId: svc.id, productoId: null, esProducto: false, descripcion: svc.name, precioUnitario: svc.price }
+            : l
+        )
+        return aplicarDescALineas(updated)
+      })
     } else {
-      setLineas(prev => [...prev, {
-        key: Date.now().toString(),
-        barberoId: null, barberoNombre: '',
-        servicioId: svc.id, productoId: null, esProducto: false,
-        descripcion: svc.name,
-        precioUnitario: svc.price, cantidad: 1, descuento: 0, esGravado: false,
-      }])
+      setLineas(prev => {
+        const nueva: LineaVenta = {
+          key: Date.now().toString(),
+          barberoId: null, barberoNombre: '',
+          servicioId: svc.id, productoId: null, esProducto: false,
+          descripcion: svc.name,
+          precioUnitario: svc.price, cantidad: 1, descuento: 0, esGravado: false,
+        }
+        return aplicarDescALineas([...prev, nueva])
+      })
     }
   }
 
@@ -294,13 +374,16 @@ export default function PosClient({
       updateLinea(existente.key, 'cantidad', existente.cantidad + cantidad)
       return
     }
-    setLineas(prev => [...prev, {
-      key: Date.now().toString(),
-      barberoId: null, barberoNombre: '',
-      servicioId: null, productoId: p.id, esProducto: true,
-      descripcion,
-      precioUnitario, cantidad, descuento: 0, esGravado: false,
-    }])
+    setLineas(prev => {
+      const nueva: LineaVenta = {
+        key: Date.now().toString(),
+        barberoId: null, barberoNombre: '',
+        servicioId: null, productoId: p.id, esProducto: true,
+        descripcion,
+        precioUnitario, cantidad, descuento: 0, esGravado: false,
+      }
+      return aplicarDescALineas([...prev, nueva])
+    })
   }
 
   // ── Pagos ───────────────────────────────────────────────────────────────────
@@ -407,6 +490,8 @@ export default function PosClient({
       setClienteNombre('')
       setClienteDocumento('')
       setClienteNrc('')
+      setDescuentoActivo(null)
+      setBusquedaDescuento('')
       cargarTurno()
       cargarVentasRecientes()
     } catch (e: any) {
@@ -825,7 +910,7 @@ export default function PosClient({
                     )}
                   </Space>
                   {lineas.length > 0 && (
-                    <Button size="small" type="text" danger onClick={() => { setLineas([]); setLineaGratis(null) }}>
+                    <Button size="small" type="text" danger onClick={() => { setLineas([]); setLineaGratis(null); setDescuentoActivo(null); setBusquedaDescuento('') }}>
                       Limpiar
                     </Button>
                   )}
@@ -1225,6 +1310,62 @@ export default function PosClient({
                 </div>
               )
             })()}
+
+            {/* Cliente / Empresa con descuento (opcional) */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4, fontWeight: 600 }}>
+                👤 Cliente / Empresa con descuento (opcional)
+              </div>
+              {descuentoActivo ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: `${primary}18`, border: `1px solid ${primary}40`,
+                  borderRadius: 6, padding: '4px 8px', fontSize: 12,
+                }}>
+                  <span style={{ color: primary, fontWeight: 600 }}>
+                    ✅ {descuentoActivo.nombre} —{' '}
+                    {descuentoActivo.tipo === 'PORCENTAJE'
+                      ? `${descuentoActivo.valor}% aplicado`
+                      : `$${descuentoActivo.valor.toFixed(2)} aplicado`}
+                  </span>
+                  <Button size="small" type="text" danger style={{ padding: '0 4px', height: 20, fontSize: 11 }}
+                    onClick={limpiarDescuentoCliente}>✕</Button>
+                </div>
+              ) : (
+                <AutoComplete
+                  style={{ width: '100%' }}
+                  value={busquedaDescuento}
+                  placeholder="Buscar cliente o empresa..."
+                  onFocus={cargarClientesDescuento}
+                  onChange={v => setBusquedaDescuento(v)}
+                  onSelect={(_, opt) => seleccionarClienteDescuento(opt.cliente)}
+                  options={clientesDescuento
+                    .filter(c => {
+                      const q = busquedaDescuento.trim().toLowerCase()
+                      if (!q) return true
+                      return (c.nombreComercial || c.fullName).toLowerCase().includes(q) ||
+                        (c.numDocumento ?? '').toLowerCase().includes(q)
+                    })
+                    .map(c => ({
+                      value: c.nombreComercial || c.fullName,
+                      cliente: c,
+                      label: (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>
+                            <strong>{c.nombreComercial || c.fullName}</strong>
+                            {c.tipoDocumento === '36' && <span style={{ color: '#888', marginLeft: 6, fontSize: 11 }}>(Empresa)</span>}
+                          </span>
+                          <span style={{ fontSize: 11, color: '#d46b08' }}>
+                            {c.descuentoTipo === 'PORCENTAJE' ? `${c.descuentoValor}%` : `$${c.descuentoValor.toFixed(2)}`}
+                          </span>
+                        </div>
+                      ),
+                    }))}
+                  notFoundContent={loadingClienteDesc ? 'Cargando...' : 'Sin resultados'}
+                  size="small"
+                />
+              )}
+            </div>
 
             {/* Factura (opcional) */}
             <div style={{ marginBottom: 12 }}>
