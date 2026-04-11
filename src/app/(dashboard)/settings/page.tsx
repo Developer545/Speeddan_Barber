@@ -573,18 +573,18 @@ type LoginThemeId =
   | 'barberia-teal' | 'barberia-clasica' | 'barberia-carbon' | 'barberia-navy'
   | 'salon-rose'    | 'salon-lila'       | 'salon-dorado'    | 'salon-esmeralda';
 
-const BARBERIA_THEMES: { id: LoginThemeId; label: string; desc: string; from: string; to: string }[] = [
-  { id: 'barberia-teal',    label: 'Oceánico',  desc: 'Verde/teal — estilo premium',    from: 'hsl(175 60% 18%)', to: '#6498AF' },
-  { id: 'barberia-clasica', label: 'Clásica',   desc: 'Marrón cuero + dorado vintage',  from: '#3d2010',          to: '#D4A853' },
-  { id: 'barberia-carbon',  label: 'Carbón',    desc: 'Negro carbón + plata urbano',    from: 'hsl(220 14% 7%)',  to: '#9ca3af' },
-  { id: 'barberia-navy',    label: 'Navy',      desc: 'Azul marino + rojo — gentleman', from: 'hsl(214 52% 7%)',  to: '#e74c3c' },
+const BARBERIA_THEMES: { id: LoginThemeId; label: string; desc: string; from: string; to: string; image: string }[] = [
+  { id: 'barberia-teal',    label: 'Oceánico',  desc: 'Verde/teal — estilo premium',    from: 'hsl(175 60% 18%)', to: '#6498AF', image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80' },
+  { id: 'barberia-clasica', label: 'Clásica',   desc: 'Marrón cuero + dorado vintage',  from: '#3d2010',          to: '#D4A853', image: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=600&q=80' },
+  { id: 'barberia-carbon',  label: 'Carbón',    desc: 'Negro carbón + plata urbano',    from: 'hsl(220 14% 7%)',  to: '#9ca3af', image: 'https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?auto=format&fit=crop&w=600&q=80' },
+  { id: 'barberia-navy',    label: 'Navy',      desc: 'Azul marino + rojo — gentleman', from: 'hsl(214 52% 7%)',  to: '#e74c3c', image: 'https://images.unsplash.com/photo-1605497788044-5a32c7078486?auto=format&fit=crop&w=600&q=80' },
 ];
 
-const SALON_THEMES: { id: LoginThemeId; label: string; desc: string; from: string; to: string }[] = [
-  { id: 'salon-rose',       label: 'Rose',      desc: 'Rosa/fucsia — beauty studio',    from: '#54142e',          to: '#E06F98' },
-  { id: 'salon-lila',       label: 'Lila',      desc: 'Lavanda + plata — elegante',     from: 'hsl(262 45% 8%)', to: '#a78bfa' },
-  { id: 'salon-dorado',     label: 'Dorado',    desc: 'Champagne + oro — lujo premium', from: 'hsl(40 58% 7%)',  to: '#c9a84c' },
-  { id: 'salon-esmeralda',  label: 'Esmeralda', desc: 'Verde esmeralda — spa natural',  from: 'hsl(158 55% 7%)', to: '#2d8a65' },
+const SALON_THEMES: { id: LoginThemeId; label: string; desc: string; from: string; to: string; image: string }[] = [
+  { id: 'salon-rose',       label: 'Rose',      desc: 'Rosa/fucsia — beauty studio',    from: '#54142e',          to: '#E06F98', image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80' },
+  { id: 'salon-lila',       label: 'Lila',      desc: 'Lavanda + plata — elegante',     from: 'hsl(262 45% 8%)', to: '#a78bfa', image: 'https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=600&q=80' },
+  { id: 'salon-dorado',     label: 'Dorado',    desc: 'Champagne + oro — lujo premium', from: 'hsl(40 58% 7%)',  to: '#c9a84c', image: 'https://images.unsplash.com/photo-1487412947147-5cebf100ffc2?auto=format&fit=crop&w=600&q=80' },
+  { id: 'salon-esmeralda',  label: 'Esmeralda', desc: 'Verde esmeralda — spa natural',  from: 'hsl(158 55% 7%)', to: '#2d8a65', image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=600&q=80' },
 ];
 
 function TabLoginTema() {
@@ -651,7 +651,8 @@ function TabLoginTema() {
                 {/* Preview gradiente */}
                 <div style={{
                   height: 100, position: 'relative',
-                  background: `linear-gradient(135deg, ${t.from} 0%, ${t.to} 100%)`,
+                  backgroundImage: `linear-gradient(135deg, ${t.from}cc 0%, ${t.to}99 100%), url("${t.image}")`,
+                  backgroundSize: 'cover', backgroundPosition: 'center',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {/* Mini scissor/sparkle icon */}
